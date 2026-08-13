@@ -7,4 +7,7 @@ object ImmichRoutes {
   const val HOME = "home"
   const val SETTINGS = "settings"
   const val TIMELINE = "timeline"
+  const val ASSET_DETAIL_PATTERN = "assetDetail/{assetId}"
+
+  fun assetDetail(assetId: String) = "assetDetail/$assetId"
 }

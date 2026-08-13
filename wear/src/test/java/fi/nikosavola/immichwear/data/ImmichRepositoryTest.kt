@@ -145,4 +145,48 @@ class ImmichRepositoryTest {
 
     assertEquals(null, (result as ImmichResult.Success).value.nextPage)
   }
+
+  @Test
+  fun `asset fails with NotConfigured before a server is connected`() = runTest {
+    val result = repository.asset("a1")
+
+    assertEquals(ImmichResult.Failure(ImmichError.NotConfigured), result)
+    assertEquals(0, server.requestCount)
+  }
+
+  @Test
+  fun `asset fetches by id`() = runTest {
+    server.enqueue(MockResponse().setBody("""{"id": "u1", "email": "$EMAIL"}"""))
+    repository.connect(server.url("/").toString(), API_KEY)
+    server.takeRequest()
+    server.enqueue(
+      MockResponse()
+        .setBody(
+          """{"id": "a1", "type": "IMAGE", "originalFileName": "a1.jpg", "isFavorite": false,""" +
+            """ "localDateTime": "2026-01-01T00:00:00Z"}"""
+        )
+    )
+
+    val result = repository.asset("a1")
+
+    assertTrue(result is ImmichResult.Success)
+    assertEquals("a1", (result as ImmichResult.Success).value.id)
+    assertEquals("/api/assets/a1", server.takeRequest().path)
+  }
+
+  @Test
+  fun `setFavorite PUTs isFavorite to the asset endpoint`() = runTest {
+    server.enqueue(MockResponse().setBody("""{"id": "u1", "email": "$EMAIL"}"""))
+    repository.connect(server.url("/").toString(), API_KEY)
+    server.takeRequest()
+    server.enqueue(MockResponse().setBody(""))
+
+    val result = repository.setFavorite("a1", true)
+
+    assertTrue(result is ImmichResult.Success)
+    val recorded = server.takeRequest()
+    assertEquals("PUT", recorded.method)
+    assertEquals("/api/assets/a1", recorded.path)
+    assertEquals("""{"isFavorite":true}""", recorded.body.readUtf8())
+  }
 }

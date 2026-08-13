@@ -1,6 +1,7 @@
 package fi.nikosavola.immichwear.data.api
 
 import fi.nikosavola.immichwear.data.api.dto.AlbumDto
+import fi.nikosavola.immichwear.data.api.dto.AssetDto
 import fi.nikosavola.immichwear.data.api.dto.MetadataSearchRequest
 import fi.nikosavola.immichwear.data.api.dto.SearchMetadataResponse
 import fi.nikosavola.immichwear.data.api.dto.ServerPingResponse
@@ -16,6 +17,8 @@ interface ImmichApi {
   @GET("api/server/ping") suspend fun ping(): ServerPingResponse
 
   @GET("api/users/me") suspend fun getCurrentUser(): UserDto
+
+  @GET("api/assets/{id}") suspend fun getAssetInfo(@Path("id") id: String): AssetDto
 
   @POST("api/search/metadata")
   suspend fun searchMetadata(@Body request: MetadataSearchRequest): SearchMetadataResponse

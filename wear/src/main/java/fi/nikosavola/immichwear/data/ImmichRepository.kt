@@ -3,6 +3,7 @@ package fi.nikosavola.immichwear.data
 import fi.nikosavola.immichwear.data.api.ImmichApi
 import fi.nikosavola.immichwear.data.api.dto.AssetDto
 import fi.nikosavola.immichwear.data.api.dto.MetadataSearchRequest
+import fi.nikosavola.immichwear.data.api.dto.UpdateAssetRequest
 import fi.nikosavola.immichwear.data.api.dto.UserDto
 import java.io.IOException
 import kotlinx.coroutines.CancellationException
@@ -73,6 +74,20 @@ class ImmichRepository(private val api: ImmichApi, private val settingsStore: Se
             nextPage = response.assets.nextPage?.toIntOrNull(),
           )
         }
+    }
+
+  /** Fetches full metadata for one asset, including its current favorite state. */
+  suspend fun asset(assetId: String): ImmichResult<AssetDto> =
+    when (val configured = requireConfigured()) {
+      is ImmichResult.Failure -> configured
+      is ImmichResult.Success -> runCatchingImmich { api.getAssetInfo(assetId) }
+    }
+
+  suspend fun setFavorite(assetId: String, isFavorite: Boolean): ImmichResult<Unit> =
+    when (val configured = requireConfigured()) {
+      is ImmichResult.Failure -> configured
+      is ImmichResult.Success ->
+        runCatchingImmich { api.updateAsset(assetId, UpdateAssetRequest(isFavorite)) }
     }
 
   private suspend fun requireConfigured(): ImmichResult<Unit> {
