@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Immich Wear OS companion — launcher icon. 108x108dp adaptive layer; artwork fits the 66dp safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- photo frame -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="6"
+        android:fillColor="#00000000"
+        android:pathData="M32,24 H76 A8,8 0 0 1 84,32 V76 A8,8 0 0 1 76,84 H32 A8,8 0 0 1 24,76 V32 A8,8 0 0 1 32,24 Z" />
+    <!-- sun -->
+    <path android:fillColor="#FFFFFFFF" android:pathData="M35,38 a5,5 0 1 0 10,0 a5,5 0 1 0 -10,0 Z" />
+    <!-- mountain range -->
+    <path android:fillColor="#FFFFFFFF" android:pathData="M28,80 L46,50 L56,64 L68,46 L80,80 Z" />
+</vector>

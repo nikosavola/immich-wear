@@ -1,0 +1,47 @@
+# Detekt configuration.
+#
+# `allRules = true` is set in the root build.gradle.kts (the Kotlin analog of enabling clippy's
+# pedantic/nursery groups). This file re-disables only rules that genuinely conflict with a
+# deliberate choice in this project; everything else detekt offers is left on. Each entry below was
+# added because running detekt on this codebase actually flagged it - not preemptively.
+comments:
+  active: true
+  # Public API is documented where it aids understanding, not exhaustively; don't require KDoc on
+  # every public declaration (e.g. UserDto's fields, MainActivity, ImmichTheme).
+  UndocumentedPublicClass:
+    active: false
+  UndocumentedPublicFunction:
+    active: false
+  UndocumentedPublicProperty:
+    active: false
+naming:
+  active: true
+  # Composables (e.g. ImmichTheme) are PascalCase, so allow an uppercase first letter.
+  FunctionNaming:
+    active: true
+    functionPattern: '[a-zA-Z][a-zA-Z0-9]*'
+  # Backtick-quoted, sentence-style JUnit test names are the convention here; that descriptiveness
+  # is the point.
+  FunctionNameMaxLength:
+    active: false
+style:
+  active: true
+  # ktfmt is the sole formatting authority, including multiline raw-string indentation.
+  MultilineRawStringIndentation:
+    active: false
+exceptions:
+  active: true
+  # ImmichRepository/SettingsStore/ApiKeyCipher deliberately map these to a fixed ImmichError or to
+  # a null/absent result; the returned value already carries everything a caller acts on, and this
+  # data layer has no logging sink to hand the original exception to. Listed by type rather than
+  # switching the rule off, so a genuinely swallowed exception of any other type still fails.
+  SwallowedException:
+    active: true
+    ignoredExceptionTypes:
+      - 'GeneralSecurityException'
+      - 'HttpException'
+      - 'IOException'
+      - 'IllegalArgumentException'
+      - 'InterruptedException'
+      - 'MalformedURLException'
+      - 'SerializationException'

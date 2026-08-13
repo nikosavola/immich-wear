@@ -1,12 +1,16 @@
 # Gradle files
 .gradle/
 build/
+# Kotlin 2.x build session files. Empty between builds, so it is easy to miss, and jj auto-tracks
+# anything not ignored here.
+.kotlin/
 
 # Local configuration file (sdk path, etc)
 local.properties
 
 # Log/OS Files
 *.log
+.DS_Store
 
 # Android Studio generated files and folders
 captures/
