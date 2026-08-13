@@ -9,7 +9,6 @@ import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
 import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
-import androidx.wear.compose.material3.lazy.rememberTransformationSpec
 import fi.nikosavola.immichwear.R
 
 @Composable
@@ -20,14 +19,12 @@ fun TimelineScreen(
 ) {
   val uiState by viewModel.uiState.collectAsStateWithLifecycle()
   val listState = rememberTransformingLazyColumnState()
-  val transformationSpec = rememberTransformationSpec()
 
   ScreenScaffold(scrollState = listState) { contentPadding ->
     TransformingLazyColumn(state = listState, contentPadding = contentPadding) {
       item { ListHeader { Text(text = stringResource(R.string.timeline_title)) } }
       assetGridItems(
         uiState = uiState,
-        transformationSpec = transformationSpec,
         emptyMessageRes = R.string.timeline_empty,
         onAssetClick = onAssetClick,
         onLoadMore = viewModel::loadMore,

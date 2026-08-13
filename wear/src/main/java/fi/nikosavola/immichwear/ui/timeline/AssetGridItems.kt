@@ -13,8 +13,6 @@ import androidx.wear.compose.foundation.lazy.TransformingLazyColumnScope
 import androidx.wear.compose.foundation.lazy.items
 import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.Text
-import androidx.wear.compose.material3.lazy.TransformationSpec
-import androidx.wear.compose.material3.lazy.transformedHeight
 import fi.nikosavola.immichwear.R
 import fi.nikosavola.immichwear.data.api.dto.AssetDto
 import fi.nikosavola.immichwear.ui.ErrorContent
@@ -25,10 +23,13 @@ private const val GRID_COLUMNS = 3
  * Shared item content for a paginated 3-column asset grid: loading/error/empty states, rows of
  * thumbnails, and a load-more footer. Used by both the all-photos Timeline and per-album asset
  * grids, which differ only in where [uiState] comes from and the empty-state message.
+ *
+ * Rows don't use [androidx.wear.compose.material3.lazy.transformedHeight]: that API shrinks the
+ * row's layout slot near the screen edges without scaling the thumbnails inside it, so images bled
+ * into neighboring rows while scrolling. Plain rows keep a fixed height instead.
  */
 fun TransformingLazyColumnScope.assetGridItems(
   uiState: TimelineUiState,
-  transformationSpec: TransformationSpec,
   @StringRes emptyMessageRes: Int,
   onAssetClick: (assetId: String) -> Unit,
   onLoadMore: () -> Unit,
@@ -49,11 +50,7 @@ fun TransformingLazyColumnScope.assetGridItems(
         item { Text(text = stringResource(emptyMessageRes)) }
       } else {
         items(items = uiState.items.chunked(GRID_COLUMNS), key = { row -> row.first().id }) { row ->
-          AssetRow(
-            row = row,
-            onAssetClick = onAssetClick,
-            modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec),
-          )
+          AssetRow(row = row, onAssetClick = onAssetClick, modifier = Modifier.fillMaxWidth())
         }
         if (uiState.nextPage != null) {
           item {
