@@ -39,6 +39,12 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
   val uiState by viewModel.uiState.collectAsStateWithLifecycle()
   val scrollState = rememberScrollState()
 
+  // Hoisted above the `when` below, not remembered inside SignedOutContent: that composable is
+  // torn down and rebuilt every time uiState cycles through Connecting, which would otherwise
+  // wipe both fields - forcing a full retype - on every rejected connect attempt.
+  var serverUrlInput by remember { mutableStateOf("") }
+  var apiKeyInput by remember { mutableStateOf("") }
+
   ScreenScaffold(scrollState = scrollState) { contentPadding ->
     Column(
       modifier = Modifier.fillMaxSize().verticalScroll(scrollState).padding(contentPadding),
@@ -57,7 +63,14 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
           SignedInContent(state = state, onSignOut = viewModel::signOut)
         }
         is SettingsUiState.SignedOut -> {
-          SignedOutContent(state = state, onConnect = viewModel::connect)
+          SignedOutContent(
+            state = state,
+            serverUrlInput = serverUrlInput,
+            onServerUrlInputChange = { serverUrlInput = it },
+            apiKeyInput = apiKeyInput,
+            onApiKeyInputChange = { apiKeyInput = it },
+            onConnect = viewModel::connect,
+          )
         }
       }
     }
@@ -79,10 +92,12 @@ private fun SignedInContent(state: SettingsUiState.SignedIn, onSignOut: () -> Un
 @Composable
 private fun SignedOutContent(
   state: SettingsUiState.SignedOut,
+  serverUrlInput: String,
+  onServerUrlInputChange: (String) -> Unit,
+  apiKeyInput: String,
+  onApiKeyInputChange: (String) -> Unit,
   onConnect: (serverUrl: String, apiKey: String) -> Unit,
 ) {
-  var serverUrlInput by remember { mutableStateOf("") }
-  var apiKeyInput by remember { mutableStateOf("") }
   val clipboardManager = LocalClipboardManager.current
 
   state.error?.let { error -> Text(text = errorMessage(error)) }
@@ -94,7 +109,7 @@ private fun SignedOutContent(
   // explicitly.
   BasicTextField(
     value = serverUrlInput,
-    onValueChange = { serverUrlInput = it },
+    onValueChange = onServerUrlInputChange,
     modifier =
       Modifier.fillMaxWidth()
         .padding(horizontal = 8.dp)
@@ -113,7 +128,7 @@ private fun SignedOutContent(
   // no "show" toggle to verify what was typed.
   BasicTextField(
     value = apiKeyInput,
-    onValueChange = { apiKeyInput = it },
+    onValueChange = onApiKeyInputChange,
     modifier =
       Modifier.fillMaxWidth()
         .padding(horizontal = 8.dp)
@@ -136,7 +151,11 @@ private fun SignedOutContent(
   FilledTonalButton(
     onClick = {
       clipboardManager.getText()?.let { pasted ->
-        if (serverUrlInput.isBlank()) serverUrlInput = pasted.text else apiKeyInput = pasted.text
+        if (serverUrlInput.isBlank()) {
+          onServerUrlInputChange(pasted.text)
+        } else {
+          onApiKeyInputChange(pasted.text)
+        }
       }
     },
     modifier = Modifier.fillMaxWidth(),

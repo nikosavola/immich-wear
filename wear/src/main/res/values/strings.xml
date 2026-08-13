@@ -15,6 +15,8 @@
     <string name="settings_sign_out_button">Sign out</string>
     <string name="settings_signed_in_account">Signed in as %1$s</string>
 
+    <string name="home_not_connected">Connect to your Immich server to get started.</string>
+
     <string name="timeline_title">Recent photos</string>
     <string name="timeline_empty">No photos yet.</string>
     <string name="timeline_load_more_button">Load more</string>
