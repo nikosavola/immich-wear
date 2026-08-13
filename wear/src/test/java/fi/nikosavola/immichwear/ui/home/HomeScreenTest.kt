@@ -67,6 +67,7 @@ class HomeScreenTest {
         viewModel = viewModel,
         onNavigateToTimeline = {},
         onNavigateToAlbums = {},
+        onNavigateToFavorites = {},
         onNavigateToSettings = { navigatedToSettings = true },
       )
       if (navigatedToSettings) Text(text = MARKER)
@@ -93,6 +94,7 @@ class HomeScreenTest {
         viewModel = viewModel,
         onNavigateToTimeline = { navigatedTo = "timeline" },
         onNavigateToAlbums = { navigatedTo = "albums" },
+        onNavigateToFavorites = { navigatedTo = "favorites" },
         onNavigateToSettings = { navigatedTo = "settings" },
       )
       if (navigatedTo != null) Text(text = MARKER)
@@ -103,5 +105,32 @@ class HomeScreenTest {
 
     waitForText(MARKER)
     assertTrue(navigatedTo == "albums")
+  }
+
+  @Test
+  fun `connected shows a Favorites row that navigates`() {
+    runBlocking {
+      settingsStore.setServerUrl("https://immich.example.com/")
+      settingsStore.setApiKey("key")
+    }
+    val viewModel = HomeViewModel(settingsStore)
+    var navigatedTo by mutableStateOf<String?>(null)
+
+    composeRule.setContent {
+      HomeScreen(
+        viewModel = viewModel,
+        onNavigateToTimeline = { navigatedTo = "timeline" },
+        onNavigateToAlbums = { navigatedTo = "albums" },
+        onNavigateToFavorites = { navigatedTo = "favorites" },
+        onNavigateToSettings = { navigatedTo = "settings" },
+      )
+      if (navigatedTo != null) Text(text = MARKER)
+    }
+    waitForText(string(R.string.favorites_title))
+
+    composeRule.onNodeWithText(string(R.string.favorites_title)).performClick()
+
+    waitForText(MARKER)
+    assertTrue(navigatedTo == "favorites")
   }
 }

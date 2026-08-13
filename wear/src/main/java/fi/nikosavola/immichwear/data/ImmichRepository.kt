@@ -133,6 +133,21 @@ class ImmichRepository(private val api: ImmichApi, private val settingsStore: Se
         }
     }
 
+  /** Fetches one page of favorited assets, newest first. */
+  suspend fun favorites(page: Int? = null): ImmichResult<TimelinePage> =
+    when (val configured = requireConfigured()) {
+      is ImmichResult.Failure -> configured
+      is ImmichResult.Success ->
+        runCatchingImmich {
+          api
+            .searchMetadata(
+              MetadataSearchRequest(size = TIMELINE_PAGE_SIZE, isFavorite = true, page = page)
+            )
+            .assets
+            .toTimelinePage()
+        }
+    }
+
   /** Fetches full metadata for one asset, including its current favorite state. */
   suspend fun asset(assetId: String): ImmichResult<AssetDto> =
     when (val configured = requireConfigured()) {

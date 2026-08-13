@@ -7,6 +7,7 @@ object ImmichRoutes {
   const val HOME = "home"
   const val SETTINGS = "settings"
   const val TIMELINE = "timeline"
+  const val FAVORITES = "favorites"
   const val ASSET_DETAIL_PATTERN = "assetDetail/{assetId}"
   const val ALBUMS = "albums"
   const val ALBUM_DETAIL_PATTERN = "albumDetail/{albumId}"

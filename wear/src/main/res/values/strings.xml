@@ -21,6 +21,9 @@
     <string name="timeline_empty">No photos yet.</string>
     <string name="timeline_load_more_button">Load more</string>
 
+    <string name="favorites_title">Favorites</string>
+    <string name="favorites_empty">No favorites yet.</string>
+
     <string name="asset_detail_video_unsupported">Video playback isn\'t supported here.</string>
 
     <string name="albums_title">Albums</string>

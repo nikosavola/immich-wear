@@ -18,6 +18,8 @@ import fi.nikosavola.immichwear.ui.albums.AlbumsScreen
 import fi.nikosavola.immichwear.ui.albums.AlbumsViewModel
 import fi.nikosavola.immichwear.ui.detail.AssetDetailScreen
 import fi.nikosavola.immichwear.ui.detail.AssetDetailViewModel
+import fi.nikosavola.immichwear.ui.favorites.FavoritesScreen
+import fi.nikosavola.immichwear.ui.favorites.FavoritesViewModel
 import fi.nikosavola.immichwear.ui.home.HomeScreen
 import fi.nikosavola.immichwear.ui.home.HomeViewModel
 import fi.nikosavola.immichwear.ui.settings.SettingsScreen
@@ -38,6 +40,7 @@ fun ImmichNavHost(
       composable(ImmichRoutes.HOME) { HomeDestination(appContainer, navController) }
       composable(ImmichRoutes.SETTINGS) { SettingsDestination(appContainer) }
       composable(ImmichRoutes.TIMELINE) { TimelineDestination(appContainer, navController) }
+      composable(ImmichRoutes.FAVORITES) { FavoritesDestination(appContainer, navController) }
       composable(
         ImmichRoutes.ASSET_DETAIL_PATTERN,
         arguments = listOf(navArgument(ASSET_ID_ARG) { type = NavType.StringType }),
@@ -67,6 +70,7 @@ private fun HomeDestination(appContainer: AppContainer, navController: NavHostCo
     viewModel = viewModel,
     onNavigateToTimeline = { navController.navigate(ImmichRoutes.TIMELINE) },
     onNavigateToAlbums = { navController.navigate(ImmichRoutes.ALBUMS) },
+    onNavigateToFavorites = { navController.navigate(ImmichRoutes.FAVORITES) },
     onNavigateToSettings = { navController.navigate(ImmichRoutes.SETTINGS) },
   )
 }
@@ -107,6 +111,27 @@ private fun TimelineDestination(appContainer: AppContainer, navController: NavHo
         }
     )
   TimelineScreen(
+    viewModel = viewModel,
+    onAssetClick = { assetId -> navController.navigate(ImmichRoutes.assetDetail(assetId)) },
+    onNavigateToSettings = { navController.navigate(ImmichRoutes.SETTINGS) },
+  )
+}
+
+@Composable
+private fun FavoritesDestination(appContainer: AppContainer, navController: NavHostController) {
+  val viewModel: FavoritesViewModel =
+    viewModel(
+      factory =
+        viewModelFactory {
+          initializer {
+            FavoritesViewModel(
+              repository = appContainer.repository,
+              settingsPrimed = appContainer.settingsPrimed,
+            )
+          }
+        }
+    )
+  FavoritesScreen(
     viewModel = viewModel,
     onAssetClick = { assetId -> navController.navigate(ImmichRoutes.assetDetail(assetId)) },
     onNavigateToSettings = { navController.navigate(ImmichRoutes.SETTINGS) },

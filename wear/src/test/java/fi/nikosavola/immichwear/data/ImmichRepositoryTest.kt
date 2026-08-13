@@ -277,4 +277,18 @@ class ImmichRepositoryTest {
     assertEquals("/api/search/metadata", recorded.path)
     assertEquals("""{"size":30,"order":"desc","albumIds":["al1"]}""", recorded.body.readUtf8())
   }
+
+  @Test
+  fun `favorites scopes the search to isFavorite`() = runTest {
+    server.enqueue(MockResponse().setBody("""{"id": "u1", "email": "$EMAIL"}"""))
+    repository.connect(server.url("/").toString(), API_KEY)
+    server.takeRequest()
+    server.enqueue(MockResponse().setBody("""{"assets": {"items": [], "nextPage": null}}"""))
+
+    repository.favorites()
+
+    val recorded = server.takeRequest()
+    assertEquals("/api/search/metadata", recorded.path)
+    assertEquals("""{"size":30,"order":"desc","isFavorite":true}""", recorded.body.readUtf8())
+  }
 }

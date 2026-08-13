@@ -21,6 +21,7 @@ fun HomeScreen(
   viewModel: HomeViewModel,
   onNavigateToTimeline: () -> Unit,
   onNavigateToAlbums: () -> Unit,
+  onNavigateToFavorites: () -> Unit,
   onNavigateToSettings: () -> Unit,
 ) {
   val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -60,6 +61,14 @@ fun HomeScreen(
               modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec),
             ) {
               Text(text = stringResource(R.string.albums_title))
+            }
+          }
+          item {
+            Button(
+              onClick = onNavigateToFavorites,
+              modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec),
+            ) {
+              Text(text = stringResource(R.string.favorites_title))
             }
           }
           item {

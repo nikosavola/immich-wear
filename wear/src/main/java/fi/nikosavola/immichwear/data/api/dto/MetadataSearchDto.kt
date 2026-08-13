@@ -12,6 +12,8 @@ data class MetadataSearchRequest(
   // Present so the timeline can move past whatever page the caller requests; absent (null) on the
   // very first page.
   val page: Int? = null,
+  // Null (no filter) for the timeline and album grids; true to scope to the favorites view.
+  val isFavorite: Boolean? = null,
 )
 
 @Serializable data class SearchMetadataResponse(val assets: SearchAssetResponse)
