@@ -23,6 +23,14 @@
 
     <string name="asset_detail_video_unsupported">Video playback isn\'t supported here.</string>
 
+    <string name="albums_title">Albums</string>
+    <string name="albums_empty">No albums yet.</string>
+    <string name="albums_detail_empty">This album has no photos yet.</string>
+    <plurals name="albums_asset_count">
+        <item quantity="one">%d photo</item>
+        <item quantity="other">%d photos</item>
+    </plurals>
+
     <string name="error_unauthorized">Invalid API key. Please connect again.</string>
     <string name="error_offline">Can\'t reach the server. Check the address and your connection.</string>
     <string name="error_http">Something went wrong (code %1$d).</string>

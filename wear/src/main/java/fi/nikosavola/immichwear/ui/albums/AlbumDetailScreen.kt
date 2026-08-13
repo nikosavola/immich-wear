@@ -1,4 +1,4 @@
-package fi.nikosavola.immichwear.ui.timeline
+package fi.nikosavola.immichwear.ui.albums
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -11,24 +11,26 @@ import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
 import fi.nikosavola.immichwear.R
+import fi.nikosavola.immichwear.ui.timeline.assetGridItems
 
 @Composable
-fun TimelineScreen(
-  viewModel: TimelineViewModel,
+fun AlbumDetailScreen(
+  viewModel: AlbumDetailViewModel,
   onAssetClick: (assetId: String) -> Unit,
   onNavigateToSettings: () -> Unit,
 ) {
   val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+  val albumName by viewModel.albumName.collectAsStateWithLifecycle()
   val listState = rememberTransformingLazyColumnState()
   val transformationSpec = rememberTransformationSpec()
 
   ScreenScaffold(scrollState = listState) { contentPadding ->
     TransformingLazyColumn(state = listState, contentPadding = contentPadding) {
-      item { ListHeader { Text(text = stringResource(R.string.timeline_title)) } }
+      item { ListHeader { Text(text = albumName ?: stringResource(R.string.albums_title)) } }
       assetGridItems(
         uiState = uiState,
         transformationSpec = transformationSpec,
-        emptyMessageRes = R.string.timeline_empty,
+        emptyMessageRes = R.string.albums_detail_empty,
         onAssetClick = onAssetClick,
         onLoadMore = viewModel::loadMore,
         onRetry = viewModel::load,

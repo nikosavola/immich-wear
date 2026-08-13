@@ -12,6 +12,10 @@ import androidx.wear.compose.navigation.SwipeDismissableNavHost
 import androidx.wear.compose.navigation.composable
 import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
 import fi.nikosavola.immichwear.di.AppContainer
+import fi.nikosavola.immichwear.ui.albums.AlbumDetailScreen
+import fi.nikosavola.immichwear.ui.albums.AlbumDetailViewModel
+import fi.nikosavola.immichwear.ui.albums.AlbumsScreen
+import fi.nikosavola.immichwear.ui.albums.AlbumsViewModel
 import fi.nikosavola.immichwear.ui.detail.AssetDetailScreen
 import fi.nikosavola.immichwear.ui.detail.AssetDetailViewModel
 import fi.nikosavola.immichwear.ui.home.HomeScreen
@@ -22,6 +26,7 @@ import fi.nikosavola.immichwear.ui.timeline.TimelineScreen
 import fi.nikosavola.immichwear.ui.timeline.TimelineViewModel
 
 private const val ASSET_ID_ARG = "assetId"
+private const val ALBUM_ID_ARG = "albumId"
 
 @Composable
 fun ImmichNavHost(
@@ -40,6 +45,14 @@ fun ImmichNavHost(
         val assetId = backStackEntry.arguments?.getString(ASSET_ID_ARG).orEmpty()
         AssetDetailDestination(appContainer, navController, assetId)
       }
+      composable(ImmichRoutes.ALBUMS) { AlbumsDestination(appContainer, navController) }
+      composable(
+        ImmichRoutes.ALBUM_DETAIL_PATTERN,
+        arguments = listOf(navArgument(ALBUM_ID_ARG) { type = NavType.StringType }),
+      ) { backStackEntry ->
+        val albumId = backStackEntry.arguments?.getString(ALBUM_ID_ARG).orEmpty()
+        AlbumDetailDestination(appContainer, navController, albumId)
+      }
     }
   }
 }
@@ -53,6 +66,7 @@ private fun HomeDestination(appContainer: AppContainer, navController: NavHostCo
   HomeScreen(
     viewModel = viewModel,
     onNavigateToTimeline = { navController.navigate(ImmichRoutes.TIMELINE) },
+    onNavigateToAlbums = { navController.navigate(ImmichRoutes.ALBUMS) },
     onNavigateToSettings = { navController.navigate(ImmichRoutes.SETTINGS) },
   )
 }
@@ -116,6 +130,53 @@ private fun AssetDetailDestination(
     )
   AssetDetailScreen(
     viewModel = viewModel,
+    onNavigateToSettings = { navController.navigate(ImmichRoutes.SETTINGS) },
+  )
+}
+
+@Composable
+private fun AlbumsDestination(appContainer: AppContainer, navController: NavHostController) {
+  val viewModel: AlbumsViewModel =
+    viewModel(
+      factory =
+        viewModelFactory {
+          initializer {
+            AlbumsViewModel(
+              repository = appContainer.repository,
+              settingsPrimed = appContainer.settingsPrimed,
+            )
+          }
+        }
+    )
+  AlbumsScreen(
+    viewModel = viewModel,
+    onAlbumClick = { albumId -> navController.navigate(ImmichRoutes.albumDetail(albumId)) },
+    onNavigateToSettings = { navController.navigate(ImmichRoutes.SETTINGS) },
+  )
+}
+
+@Composable
+private fun AlbumDetailDestination(
+  appContainer: AppContainer,
+  navController: NavHostController,
+  albumId: String,
+) {
+  val viewModel: AlbumDetailViewModel =
+    viewModel(
+      factory =
+        viewModelFactory {
+          initializer {
+            AlbumDetailViewModel(
+              repository = appContainer.repository,
+              settingsPrimed = appContainer.settingsPrimed,
+              albumId = albumId,
+            )
+          }
+        }
+    )
+  AlbumDetailScreen(
+    viewModel = viewModel,
+    onAssetClick = { assetId -> navController.navigate(ImmichRoutes.assetDetail(assetId)) },
     onNavigateToSettings = { navController.navigate(ImmichRoutes.SETTINGS) },
   )
 }

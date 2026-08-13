@@ -20,6 +20,7 @@ import fi.nikosavola.immichwear.R
 fun HomeScreen(
   viewModel: HomeViewModel,
   onNavigateToTimeline: () -> Unit,
+  onNavigateToAlbums: () -> Unit,
   onNavigateToSettings: () -> Unit,
 ) {
   val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -51,6 +52,14 @@ fun HomeScreen(
               modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec),
             ) {
               Text(text = stringResource(R.string.timeline_title))
+            }
+          }
+          item {
+            Button(
+              onClick = onNavigateToAlbums,
+              modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec),
+            ) {
+              Text(text = stringResource(R.string.albums_title))
             }
           }
           item {

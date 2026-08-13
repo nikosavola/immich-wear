@@ -1,8 +1,10 @@
 package fi.nikosavola.immichwear.data
 
 import fi.nikosavola.immichwear.data.api.ImmichApi
+import fi.nikosavola.immichwear.data.api.dto.AlbumDto
 import fi.nikosavola.immichwear.data.api.dto.AssetDto
 import fi.nikosavola.immichwear.data.api.dto.MetadataSearchRequest
+import fi.nikosavola.immichwear.data.api.dto.SearchAssetResponse
 import fi.nikosavola.immichwear.data.api.dto.UpdateAssetRequest
 import fi.nikosavola.immichwear.data.api.dto.UserDto
 import java.io.IOException
@@ -67,12 +69,45 @@ class ImmichRepository(private val api: ImmichApi, private val settingsStore: Se
       is ImmichResult.Failure -> configured
       is ImmichResult.Success ->
         runCatchingImmich {
-          val response =
-            api.searchMetadata(MetadataSearchRequest(size = TIMELINE_PAGE_SIZE, page = page))
-          TimelinePage(
-            items = response.assets.items,
-            nextPage = response.assets.nextPage?.toIntOrNull(),
-          )
+          api
+            .searchMetadata(MetadataSearchRequest(size = TIMELINE_PAGE_SIZE, page = page))
+            .assets
+            .toTimelinePage()
+        }
+    }
+
+  suspend fun albums(): ImmichResult<List<AlbumDto>> =
+    when (val configured = requireConfigured()) {
+      is ImmichResult.Failure -> configured
+      is ImmichResult.Success -> runCatchingImmich { api.getAlbums() }
+    }
+
+  suspend fun album(albumId: String): ImmichResult<AlbumDto> =
+    when (val configured = requireConfigured()) {
+      is ImmichResult.Failure -> configured
+      is ImmichResult.Success -> runCatchingImmich { api.getAlbum(albumId) }
+    }
+
+  /**
+   * Fetches one page of an album's assets, newest first. The album-by-id endpoint does not return
+   * assets inline on this server version, so this scopes the same search used by [timeline] with
+   * `albumIds`.
+   */
+  suspend fun albumAssets(albumId: String, page: Int? = null): ImmichResult<TimelinePage> =
+    when (val configured = requireConfigured()) {
+      is ImmichResult.Failure -> configured
+      is ImmichResult.Success ->
+        runCatchingImmich {
+          api
+            .searchMetadata(
+              MetadataSearchRequest(
+                size = TIMELINE_PAGE_SIZE,
+                albumIds = listOf(albumId),
+                page = page,
+              )
+            )
+            .assets
+            .toTimelinePage()
         }
     }
 
@@ -116,3 +151,6 @@ internal suspend fun <T> runCatchingImmich(block: suspend () -> T): ImmichResult
 
 internal fun httpError(code: Int): ImmichError =
   if (code == HTTP_UNAUTHORIZED) ImmichError.Unauthorized else ImmichError.Http(code)
+
+private fun SearchAssetResponse.toTimelinePage() =
+  TimelinePage(items = items, nextPage = nextPage?.toIntOrNull())

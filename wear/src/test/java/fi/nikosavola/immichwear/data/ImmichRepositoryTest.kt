@@ -189,4 +189,60 @@ class ImmichRepositoryTest {
     assertEquals("/api/assets/a1", recorded.path)
     assertEquals("""{"isFavorite":true}""", recorded.body.readUtf8())
   }
+
+  @Test
+  fun `albums fails with NotConfigured before a server is connected`() = runTest {
+    val result = repository.albums()
+
+    assertEquals(ImmichResult.Failure(ImmichError.NotConfigured), result)
+    assertEquals(0, server.requestCount)
+  }
+
+  @Test
+  fun `albums fetches the list`() = runTest {
+    server.enqueue(MockResponse().setBody("""{"id": "u1", "email": "$EMAIL"}"""))
+    repository.connect(server.url("/").toString(), API_KEY)
+    server.takeRequest()
+    server.enqueue(
+      MockResponse().setBody("""[{"id": "al1", "albumName": "Vacation", "assetCount": 3}]""")
+    )
+
+    val result = repository.albums()
+
+    assertTrue(result is ImmichResult.Success)
+    val albums = (result as ImmichResult.Success).value
+    assertEquals(1, albums.size)
+    assertEquals("al1", albums[0].id)
+    assertEquals("/api/albums", server.takeRequest().path)
+  }
+
+  @Test
+  fun `album fetches by id`() = runTest {
+    server.enqueue(MockResponse().setBody("""{"id": "u1", "email": "$EMAIL"}"""))
+    repository.connect(server.url("/").toString(), API_KEY)
+    server.takeRequest()
+    server.enqueue(
+      MockResponse().setBody("""{"id": "al1", "albumName": "Vacation", "assetCount": 3}""")
+    )
+
+    val result = repository.album("al1")
+
+    assertTrue(result is ImmichResult.Success)
+    assertEquals("Vacation", (result as ImmichResult.Success).value.albumName)
+    assertEquals("/api/albums/al1", server.takeRequest().path)
+  }
+
+  @Test
+  fun `albumAssets scopes the search to the given album id`() = runTest {
+    server.enqueue(MockResponse().setBody("""{"id": "u1", "email": "$EMAIL"}"""))
+    repository.connect(server.url("/").toString(), API_KEY)
+    server.takeRequest()
+    server.enqueue(MockResponse().setBody("""{"assets": {"items": [], "nextPage": null}}"""))
+
+    repository.albumAssets("al1")
+
+    val recorded = server.takeRequest()
+    assertEquals("/api/search/metadata", recorded.path)
+    assertEquals("""{"size":30,"order":"desc","albumIds":["al1"]}""", recorded.body.readUtf8())
+  }
 }
