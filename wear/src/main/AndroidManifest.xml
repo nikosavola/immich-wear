@@ -5,6 +5,10 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- usesCleartextTraffic: most self-hosted Immich servers run on a home LAN without TLS
+         (the official Immich apps support this too). Rejecting http:// server URLs outright would
+         break that common setup; the server address is a value the user explicitly typed in
+         Settings, not a URL fetched from an untrusted source. -->
     <application
         android:name=".ImmichApp"
         android:icon="@mipmap/ic_launcher"
@@ -12,7 +16,8 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:allowBackup="false"
-        android:theme="@android:style/Theme.DeviceDefault">
+        android:theme="@android:style/Theme.DeviceDefault"
+        android:usesCleartextTraffic="true">
 
         <!-- Required for the app to show up as a standalone Wear OS listing (not phone-tethered). -->
         <meta-data
