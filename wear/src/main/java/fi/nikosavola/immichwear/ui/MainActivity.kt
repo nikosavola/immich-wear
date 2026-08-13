@@ -3,21 +3,36 @@ package fi.nikosavola.immichwear.ui
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.wear.compose.material3.AppScaffold
-import androidx.wear.compose.material3.ScreenScaffold
-import androidx.wear.compose.material3.Text
-import fi.nikosavola.immichwear.R
+import fi.nikosavola.immichwear.ImmichApp
+import fi.nikosavola.immichwear.ui.settings.SettingsScreen
+import fi.nikosavola.immichwear.ui.settings.SettingsViewModel
 import fi.nikosavola.immichwear.ui.theme.ImmichTheme
 
-// Placeholder content; replaced by the real nav graph once the data layer lands.
+// Hosts SettingsScreen directly for now; replaced by a full nav graph once the Timeline and
+// Albums screens exist (there's nowhere else to navigate to yet).
 class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+    val appContainer = (application as ImmichApp).appContainer
+
     setContent {
-      ImmichTheme {
-        AppScaffold { ScreenScaffold { Text(text = stringResource(R.string.app_name)) } }
-      }
+      val viewModel: SettingsViewModel =
+        viewModel(
+          factory =
+            viewModelFactory {
+              initializer {
+                SettingsViewModel(
+                  repository = appContainer.repository,
+                  settingsStore = appContainer.settingsStore,
+                )
+              }
+            }
+        )
+      ImmichTheme { AppScaffold { SettingsScreen(viewModel = viewModel) } }
     }
   }
 }

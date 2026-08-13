@@ -2,4 +2,23 @@
 <resources>
     <string name="app_name">Immich</string>
     <string name="loading">Loading&#8230;</string>
+    <string name="retry_button">Retry</string>
+    <string name="go_to_settings_button">Go to Settings</string>
+
+    <string name="settings_title">Settings</string>
+    <string name="settings_server_url_label">Server URL</string>
+    <string name="settings_api_key_label">API key</string>
+    <string name="settings_clipboard_hint">Tip: copy on your phone, then tap Paste. Your phone\'s clipboard syncs to this watch.</string>
+    <string name="settings_paste_button">Paste</string>
+    <string name="settings_connect_button">Connect</string>
+    <string name="settings_connecting">Connecting&#8230;</string>
+    <string name="settings_sign_out_button">Sign out</string>
+    <string name="settings_signed_in_account">Signed in as %1$s</string>
+
+    <string name="error_unauthorized">Invalid API key. Please connect again.</string>
+    <string name="error_offline">Can\'t reach the server. Check the address and your connection.</string>
+    <string name="error_http">Something went wrong (code %1$d).</string>
+    <string name="error_parse">Unexpected response from the server.</string>
+    <string name="error_invalid_server_url">Enter a valid server address, e.g. https://immich.example.com.</string>
+    <string name="error_not_configured">Please connect to a server first.</string>
 </resources>
