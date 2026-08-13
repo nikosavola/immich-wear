@@ -7,11 +7,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.wear.compose.foundation.lazy.TransformingLazyColumn
+import androidx.wear.compose.foundation.lazy.TransformingLazyColumnScope
 import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
 import androidx.wear.compose.material3.Button
+import androidx.wear.compose.material3.FilledTonalButton
 import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.ScreenScaffold
+import androidx.wear.compose.material3.SurfaceTransformation
 import androidx.wear.compose.material3.Text
+import androidx.wear.compose.material3.lazy.TransformationSpec
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
 import androidx.wear.compose.material3.lazy.transformedHeight
 import fi.nikosavola.immichwear.R
@@ -41,46 +45,67 @@ fun HomeScreen(
             Button(
               onClick = onNavigateToSettings,
               modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec),
+              transformation = SurfaceTransformation(transformationSpec),
             ) {
               Text(text = stringResource(R.string.settings_connect_button))
             }
           }
         }
         is HomeUiState.Connected -> {
-          item {
-            Button(
-              onClick = onNavigateToTimeline,
-              modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec),
-            ) {
-              Text(text = stringResource(R.string.timeline_title))
-            }
-          }
-          item {
-            Button(
-              onClick = onNavigateToAlbums,
-              modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec),
-            ) {
-              Text(text = stringResource(R.string.albums_title))
-            }
-          }
-          item {
-            Button(
-              onClick = onNavigateToFavorites,
-              modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec),
-            ) {
-              Text(text = stringResource(R.string.favorites_title))
-            }
-          }
-          item {
-            Button(
-              onClick = onNavigateToSettings,
-              modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec),
-            ) {
-              Text(text = stringResource(R.string.settings_title))
-            }
-          }
+          connectedHomeItems(
+            transformationSpec = transformationSpec,
+            onNavigateToTimeline = onNavigateToTimeline,
+            onNavigateToAlbums = onNavigateToAlbums,
+            onNavigateToFavorites = onNavigateToFavorites,
+            onNavigateToSettings = onNavigateToSettings,
+          )
         }
       }
+    }
+  }
+}
+
+private fun TransformingLazyColumnScope.connectedHomeItems(
+  transformationSpec: TransformationSpec,
+  onNavigateToTimeline: () -> Unit,
+  onNavigateToAlbums: () -> Unit,
+  onNavigateToFavorites: () -> Unit,
+  onNavigateToSettings: () -> Unit,
+) {
+  item {
+    Button(
+      onClick = onNavigateToTimeline,
+      modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec),
+      transformation = SurfaceTransformation(transformationSpec),
+    ) {
+      Text(text = stringResource(R.string.timeline_title))
+    }
+  }
+  item {
+    FilledTonalButton(
+      onClick = onNavigateToAlbums,
+      modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec),
+      transformation = SurfaceTransformation(transformationSpec),
+    ) {
+      Text(text = stringResource(R.string.albums_title))
+    }
+  }
+  item {
+    FilledTonalButton(
+      onClick = onNavigateToFavorites,
+      modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec),
+      transformation = SurfaceTransformation(transformationSpec),
+    ) {
+      Text(text = stringResource(R.string.favorites_title))
+    }
+  }
+  item {
+    FilledTonalButton(
+      onClick = onNavigateToSettings,
+      modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec),
+      transformation = SurfaceTransformation(transformationSpec),
+    ) {
+      Text(text = stringResource(R.string.settings_title))
     }
   }
 }
