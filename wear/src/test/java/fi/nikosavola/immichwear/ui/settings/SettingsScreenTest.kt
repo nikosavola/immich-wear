@@ -78,7 +78,7 @@ class SettingsScreenTest {
     }
   }
 
-  /** The screen has exactly two text-input fields: server URL first, then API key. */
+  // The screen has exactly two text-input fields: server URL first, then API key.
   private fun typeServerUrlAndApiKey(serverUrl: String, apiKey: String) {
     val fields = composeRule.onAllNodes(hasSetTextAction())
     fields[0].performTextInput(serverUrl)

@@ -43,6 +43,7 @@ class SettingsStore(
   // container at cold start) should collect `settings` once, or call `currentSettings()`, before
   // issuing the first request so these caches are primed.
   @Volatile private var cachedServerUrl: String? = null
+
   @Volatile private var cachedApiKey: String? = null
 
   val settings: Flow<Settings> =

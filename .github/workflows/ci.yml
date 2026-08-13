@@ -1,0 +1,71 @@
+name: CI
+on:
+  push:
+    branches:
+      - main
+      - 'claude/**'
+  pull_request:
+    branches:
+      - main
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+permissions: {}
+jobs:
+  verify:
+    name: Verify Codebase (Format & Lint)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Set up Java JDK 21
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'gradle'
+      # ubuntu-latest's preinstalled SDK platforms drift with runner image updates, and AGP will
+      # not auto-download a missing compileSdk platform, so pin the exact packages this build
+      # needs (compileSdk 36 / build-tools 36.0.0) instead of relying on whatever is preinstalled.
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4
+        with:
+          packages: 'platforms;android-36 build-tools;36.0.0'
+      - name: Run Codebase Verification (Lint & Format Checks)
+        run: ./gradlew lintAll --no-daemon
+  test:
+    name: Test Suite (Kotlin)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Set up Java JDK 21
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'gradle'
+      # See the comment in the verify job: assembleDebug/testDebugUnitTest also configure AGP,
+      # which needs compileSdk 36 resolvable. testDebugUnitTest covers everything: plain JVM unit
+      # tests, per-screen Robolectric Compose tests, and the end-to-end flow test - none of them
+      # need an emulator.
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4
+        with:
+          packages: 'platforms;android-36 build-tools;36.0.0'
+      - name: Build and Run Unit Tests
+        run: ./gradlew :wear:assembleDebug :wear:testDebugUnitTest --no-daemon
+      - name: Upload Test Reports on Failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: test-reports
+          path: wear/build/reports/tests/

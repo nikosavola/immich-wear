@@ -60,13 +60,11 @@ class EndToEndFlowTest {
   private fun string(@StringRes resId: Int, vararg formatArgs: Any): String =
     ApplicationProvider.getApplicationContext<Context>().getString(resId, *formatArgs)
 
-  /**
-   * A hand-rolled poll instead of the built-in `composeRule.waitUntil`: the network call behind
-   * each step here completes on a real OkHttp thread and resumes the ViewModel's coroutine on a
-   * real Robolectric-shadowed main looper, and `waitUntil`'s own idling doesn't reliably drain that
-   * looper when the test host is a real launched Activity (as opposed to bare `setContent`).
-   * Interleaving a real sleep with an explicit `waitForIdle()` does.
-   */
+  // A hand-rolled poll instead of the built-in composeRule.waitUntil: the network call behind each
+  // step here completes on a real OkHttp thread and resumes the ViewModel's coroutine on a real
+  // Robolectric-shadowed main looper, and waitUntil's own idling doesn't reliably drain that
+  // looper when the test host is a real launched Activity (as opposed to bare setContent).
+  // Interleaving a real sleep with an explicit waitForIdle() does.
   private fun waitUntilTrue(description: String, condition: () -> Boolean) {
     val deadline = System.currentTimeMillis() + WAIT_TIMEOUT_MS
     while (System.currentTimeMillis() < deadline) {

@@ -66,9 +66,9 @@ private class ApiKeyInterceptor(private val apiKey: () -> String?) : Interceptor
 
 /**
  * Rewrites every request built against [PLACEHOLDER_BASE_URL] to target the real, user-configured
- * server. [target]'s path (if any, e.g. a reverse-proxy subpath like `/immich/`) is prepended to
- * the request's own path rather than replacing it, since Retrofit's `@GET("api/...")` paths are
- * already relative to the server root.
+ * server. The resolved target's path (if any, e.g. a reverse-proxy subpath like `/immich/`) is
+ * prepended to the request's own path rather than replacing it, since Retrofit's `@GET("api/...")`
+ * paths are already relative to the server root.
  *
  * If [baseUrl] returns null (not configured yet) or an unparseable value, the request proceeds
  * unchanged against the placeholder host, which fails as a plain [java.io.IOException] (DNS

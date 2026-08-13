@@ -40,15 +40,15 @@ class AssetDetailViewModel(
    */
   fun toggleFavorite(): Job = viewModelScope.launch {
     val state = mutableUiState.value
-    if (state !is AssetDetailUiState.Loaded || state.isTogglingFavorite) return@launch
-
-    val newValue = !state.asset.isFavorite
-    mutableUiState.value = state.copy(isTogglingFavorite = true)
-    mutableUiState.value =
-      when (repository.setFavorite(assetId, newValue)) {
-        is ImmichResult.Success ->
-          state.copy(asset = state.asset.copy(isFavorite = newValue), isTogglingFavorite = false)
-        is ImmichResult.Failure -> state.copy(isTogglingFavorite = false)
-      }
+    if (state is AssetDetailUiState.Loaded && !state.isTogglingFavorite) {
+      val newValue = !state.asset.isFavorite
+      mutableUiState.value = state.copy(isTogglingFavorite = true)
+      mutableUiState.value =
+        when (repository.setFavorite(assetId, newValue)) {
+          is ImmichResult.Success ->
+            state.copy(asset = state.asset.copy(isFavorite = newValue), isTogglingFavorite = false)
+          is ImmichResult.Failure -> state.copy(isTogglingFavorite = false)
+        }
+    }
   }
 }

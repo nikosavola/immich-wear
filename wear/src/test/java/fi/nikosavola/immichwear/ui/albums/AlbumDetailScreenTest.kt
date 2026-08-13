@@ -80,12 +80,10 @@ class AlbumDetailScreenTest {
     }
   }
 
-  /**
-   * AlbumDetailViewModel fires the assets search and the album-metadata fetch concurrently from
-   * init{}, so pairing them with plain FIFO `enqueue()` calls (as most other tests do) is a race:
-   * whichever request happens to arrive first gets whichever response was enqueued first,
-   * regardless of which endpoint it actually hit. Routing by path removes that race.
-   */
+  // AlbumDetailViewModel fires the assets search and the album-metadata fetch concurrently from
+  // init{}, so pairing them with plain FIFO enqueue() calls (as most other tests do) is a race:
+  // whichever request happens to arrive first gets whichever response was enqueued first,
+  // regardless of which endpoint it actually hit. Routing by path removes that race.
   private fun routeByPath(assetsBody: String, albumBody: String) {
     server.dispatcher =
       object : Dispatcher() {

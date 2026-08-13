@@ -25,9 +25,11 @@ fun normalizeServerUrl(rawInput: String): String? {
   if (trimmed.isEmpty()) return null
 
   val withScheme = if (SCHEME_PREFIX.containsMatchIn(trimmed)) trimmed else "https://$trimmed"
-  val url = withScheme.toHttpUrlOrNull() ?: return null
-  if (url.scheme != "http" && url.scheme != "https") return null
-
-  val prefixPath = url.encodedPath.removeSuffix("/").removeSuffix("/api")
-  return url.newBuilder().encodedPath("$prefixPath/").query(null).fragment(null).build().toString()
+  return withScheme
+    .toHttpUrlOrNull()
+    ?.takeIf { it.scheme == "http" || it.scheme == "https" }
+    ?.let { url ->
+      val prefixPath = url.encodedPath.removeSuffix("/").removeSuffix("/api")
+      url.newBuilder().encodedPath("$prefixPath/").query(null).fragment(null).build().toString()
+    }
 }

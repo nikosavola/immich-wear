@@ -32,10 +32,10 @@ class TimelineViewModel(
   /** No-op if already loading, or if the previous page was the last one. */
   fun loadMore(): Job = viewModelScope.launch {
     val state = mutableUiState.value
-    if (state !is TimelineUiState.Loaded || state.nextPage == null || state.isLoadingMore)
-      return@launch
-    mutableUiState.value = state.copy(isLoadingMore = true)
-    mutableUiState.value =
-      loadPagedAssets(page = state.nextPage, existing = state.items, fetch = repository::timeline)
+    if (state is TimelineUiState.Loaded && state.nextPage != null && !state.isLoadingMore) {
+      mutableUiState.value = state.copy(isLoadingMore = true)
+      mutableUiState.value =
+        loadPagedAssets(page = state.nextPage, existing = state.items, fetch = repository::timeline)
+    }
   }
 }

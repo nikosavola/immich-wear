@@ -1,0 +1,45 @@
+root = true
+
+# What reads this file:
+#   - ktlint (Kotlin): fully driven by .editorconfig - the standard-rule toggles below live here.
+#   - editors / IDEs: indentation, line length, final newline.
+# What does NOT (their config stays put, by design):
+#   - ktfmt: the sole formatting authority; its style (googleStyle) is set in build.gradle.kts. The
+#     ncorti plugin (0.26) doesn't consume .editorconfig, so indent_size/max_line_length below just
+#     MIRROR googleStyle (2-space, 100 cols) to keep editors agreeing with the formatter.
+#   - detekt: core rules are YAML only (config/detekt/detekt.yml).
+
+[*.{kt,kts}]
+indent_size = 2
+max_line_length = 100
+insert_final_newline = true
+# ktfmt owns formatting, so ktlint's whole layout family is disabled. Disabling only *some* of it
+# silently corrupts code: with `indent` off, any rule that still rewraps a line (class-signature,
+# function-signature, argument-list-wrapping, ...) inserts new lines that nothing then reindents,
+# and the mangled result passes ktlintCheck. So a rule that moves code across lines must be off.
+ktlint_standard_indent = disabled
+ktlint_standard_wrapping = disabled
+ktlint_standard_max-line-length = disabled
+ktlint_standard_argument-list-wrapping = disabled
+ktlint_standard_parameter-list-wrapping = disabled
+ktlint_standard_multiline-expression-wrapping = disabled
+ktlint_standard_chain-method-continuation = disabled
+ktlint_standard_class-signature = disabled
+ktlint_standard_function-signature = disabled
+ktlint_standard_function-expression-body = disabled
+ktlint_standard_function-literal = disabled
+ktlint_standard_string-template-indent = disabled
+ktlint_standard_trailing-comma-on-call-site = disabled
+ktlint_standard_trailing-comma-on-declaration-site = disabled
+ktlint_standard_spacing-between-declarations-with-comments = disabled
+# ktfmt sorts imports lexicographically (java.* among the rest); ktlint's layout wants java.* last.
+ktlint_standard_import-ordering = disabled
+# ktfmt keeps a short annotated declaration on one line, e.g. the Retrofit `@GET("user") suspend
+# fun ...`; ktlint wants the annotation on its own line.
+ktlint_standard_annotation = disabled
+# Composables (e.g. ImmichTheme) are PascalCase by Compose convention, not camelCase.
+ktlint_standard_function-naming = disabled
+
+[*.{yml,yaml,toml}]
+indent_size = 2
+insert_final_newline = true

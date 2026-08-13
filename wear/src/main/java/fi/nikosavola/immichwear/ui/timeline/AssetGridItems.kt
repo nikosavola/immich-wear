@@ -61,8 +61,11 @@ fun TransformingLazyColumnScope.assetGridItems(
               Text(
                 text =
                   stringResource(
-                    if (uiState.isLoadingMore) R.string.loading
-                    else R.string.timeline_load_more_button
+                    if (uiState.isLoadingMore) {
+                      R.string.loading
+                    } else {
+                      R.string.timeline_load_more_button
+                    }
                   )
               )
             }
