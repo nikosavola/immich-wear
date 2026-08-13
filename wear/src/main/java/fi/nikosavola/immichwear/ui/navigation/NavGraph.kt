@@ -11,6 +11,9 @@ import androidx.wear.compose.material3.AppScaffold
 import androidx.wear.compose.navigation.SwipeDismissableNavHost
 import androidx.wear.compose.navigation.composable
 import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
+import fi.nikosavola.immichwear.data.ImmichRepository
+import fi.nikosavola.immichwear.data.ImmichResult
+import fi.nikosavola.immichwear.data.TimelinePage
 import fi.nikosavola.immichwear.di.AppContainer
 import fi.nikosavola.immichwear.ui.albums.AlbumDetailScreen
 import fi.nikosavola.immichwear.ui.albums.AlbumDetailViewModel
@@ -27,6 +30,7 @@ import fi.nikosavola.immichwear.ui.settings.SettingsViewModel
 import fi.nikosavola.immichwear.ui.timeline.TimelineScreen
 import fi.nikosavola.immichwear.ui.timeline.TimelineViewModel
 
+private const val SOURCE_ARG = "source"
 private const val ASSET_ID_ARG = "assetId"
 private const val ALBUM_ID_ARG = "albumId"
 
@@ -43,10 +47,15 @@ fun ImmichNavHost(
       composable(ImmichRoutes.FAVORITES) { FavoritesDestination(appContainer, navController) }
       composable(
         ImmichRoutes.ASSET_DETAIL_PATTERN,
-        arguments = listOf(navArgument(ASSET_ID_ARG) { type = NavType.StringType }),
+        arguments =
+          listOf(
+            navArgument(SOURCE_ARG) { type = NavType.StringType },
+            navArgument(ASSET_ID_ARG) { type = NavType.StringType },
+          ),
       ) { backStackEntry ->
+        val source = backStackEntry.arguments?.getString(SOURCE_ARG).orEmpty()
         val assetId = backStackEntry.arguments?.getString(ASSET_ID_ARG).orEmpty()
-        AssetDetailDestination(appContainer, navController, assetId)
+        AssetDetailDestination(appContainer, navController, source, assetId)
       }
       composable(ImmichRoutes.ALBUMS) { AlbumsDestination(appContainer, navController) }
       composable(
@@ -112,7 +121,9 @@ private fun TimelineDestination(appContainer: AppContainer, navController: NavHo
     )
   TimelineScreen(
     viewModel = viewModel,
-    onAssetClick = { assetId -> navController.navigate(ImmichRoutes.assetDetail(assetId)) },
+    onAssetClick = { assetId ->
+      navController.navigate(ImmichRoutes.assetDetailFromTimeline(assetId))
+    },
     onNavigateToSettings = { navController.navigate(ImmichRoutes.SETTINGS) },
   )
 }
@@ -133,7 +144,9 @@ private fun FavoritesDestination(appContainer: AppContainer, navController: NavH
     )
   FavoritesScreen(
     viewModel = viewModel,
-    onAssetClick = { assetId -> navController.navigate(ImmichRoutes.assetDetail(assetId)) },
+    onAssetClick = { assetId ->
+      navController.navigate(ImmichRoutes.assetDetailFromFavorites(assetId))
+    },
     onNavigateToSettings = { navController.navigate(ImmichRoutes.SETTINGS) },
   )
 }
@@ -142,6 +155,7 @@ private fun FavoritesDestination(appContainer: AppContainer, navController: NavH
 private fun AssetDetailDestination(
   appContainer: AppContainer,
   navController: NavHostController,
+  source: String,
   assetId: String,
 ) {
   val viewModel: AssetDetailViewModel =
@@ -153,6 +167,7 @@ private fun AssetDetailDestination(
               repository = appContainer.repository,
               settingsPrimed = appContainer.settingsPrimed,
               assetId = assetId,
+              fetchPage = fetchPageFor(source, appContainer.repository),
             )
           }
         }
@@ -161,6 +176,23 @@ private fun AssetDetailDestination(
     viewModel = viewModel,
     onNavigateToSettings = { navController.navigate(ImmichRoutes.SETTINGS) },
   )
+}
+
+// Maps the `source` nav argument (see ImmichRoutes.assetDetailFromTimeline and friends) back to
+// the repository call that produces the same paginated list, so AssetDetailViewModel can
+// re-locate the tapped asset within it and page to its siblings.
+private fun fetchPageFor(
+  source: String,
+  repository: ImmichRepository,
+): suspend (Int?) -> ImmichResult<TimelinePage> {
+  val albumId = ImmichRoutes.albumIdFromSource(source)
+  return when {
+    source == ImmichRoutes.SOURCE_FAVORITES -> repository::favorites
+    albumId != null -> { page ->
+      repository.albumAssets(albumId, page)
+    }
+    else -> repository::timeline
+  }
 }
 
 @Composable
@@ -205,7 +237,9 @@ private fun AlbumDetailDestination(
     )
   AlbumDetailScreen(
     viewModel = viewModel,
-    onAssetClick = { assetId -> navController.navigate(ImmichRoutes.assetDetail(assetId)) },
+    onAssetClick = { assetId ->
+      navController.navigate(ImmichRoutes.assetDetailFromAlbum(albumId, assetId))
+    },
     onNavigateToSettings = { navController.navigate(ImmichRoutes.SETTINGS) },
   )
 }

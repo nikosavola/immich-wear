@@ -2,17 +2,28 @@ package fi.nikosavola.immichwear.ui.detail
 
 import android.content.Context
 import androidx.annotation.StringRes
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeDown
+import androidx.compose.ui.test.swipeLeft
+import androidx.compose.ui.test.swipeUp
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.test.core.app.ApplicationProvider
 import fi.nikosavola.immichwear.R
 import fi.nikosavola.immichwear.data.FakeApiKeyCipher
 import fi.nikosavola.immichwear.data.ImmichRepository
+import fi.nikosavola.immichwear.data.ImmichResult
 import fi.nikosavola.immichwear.data.SettingsStore
+import fi.nikosavola.immichwear.data.TimelinePage
 import fi.nikosavola.immichwear.data.api.createImmichClients
+import fi.nikosavola.immichwear.data.api.dto.AssetDto
+import fi.nikosavola.immichwear.data.api.dto.AssetTypeEnum
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
@@ -29,6 +40,12 @@ import org.robolectric.annotation.GraphicsMode
 
 private const val API_KEY = "test-api-key"
 private const val WAIT_TIMEOUT_MS = 5_000L
+
+// A fetchPage fake that returns no siblings, forcing AssetDetailViewModel to fall back to fetching
+// just the single requested asset - the scenario for tests unrelated to next/previous paging.
+private val noSiblings: suspend (Int?) -> ImmichResult<TimelinePage> = {
+  ImmichResult.Success(TimelinePage(items = emptyList(), nextPage = null))
+}
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -81,17 +98,34 @@ class AssetDetailScreenTest {
     }
   }
 
+  private fun waitForContentDescription(description: String) {
+    composeRule.waitUntil(timeoutMillis = WAIT_TIMEOUT_MS) {
+      composeRule.onAllNodesWithContentDescription(description).fetchSemanticsNodes().isNotEmpty()
+    }
+  }
+
   private fun assetJson(isFavorite: Boolean = false, type: String = "IMAGE") =
     """{"id": "a1", "type": "$type", "originalFileName": "a1.jpg", "isFavorite": $isFavorite,""" +
       """ "localDateTime": "2026-01-01T00:00:00Z"}"""
 
+  private fun asset(id: String) =
+    AssetDto(
+      id = id,
+      type = AssetTypeEnum.IMAGE,
+      originalFileName = "$id.jpg",
+      localDateTime = "2026-01-01T00:00:00Z",
+    )
+
   @Test
-  fun `a non-favorited asset shows the outline heart, and tapping it favorites`() {
+  fun `swiping left over the photo reveals the details panel with the favorite toggle`() {
     server.enqueue(MockResponse().setBody(assetJson(isFavorite = false)))
-    server.enqueue(MockResponse().setBody(assetJson(isFavorite = true)))
-    val viewModel = AssetDetailViewModel(repository, settingsPrimed(), "a1")
+    server.enqueue(MockResponse().setBody(""))
+    val viewModel = AssetDetailViewModel(repository, settingsPrimed(), "a1", noSiblings)
 
     composeRule.setContent { AssetDetailScreen(viewModel = viewModel, onNavigateToSettings = {}) }
+    waitForContentDescription("a1.jpg")
+
+    composeRule.onNodeWithContentDescription("a1.jpg").performTouchInput { swipeLeft() }
     waitForText("♡")
 
     composeRule.onNodeWithText("♡").performClick()
@@ -106,7 +140,7 @@ class AssetDetailScreenTest {
   @Test
   fun `a video asset shows the unsupported-playback message`() {
     server.enqueue(MockResponse().setBody(assetJson(type = "VIDEO")))
-    val viewModel = AssetDetailViewModel(repository, settingsPrimed(), "a1")
+    val viewModel = AssetDetailViewModel(repository, settingsPrimed(), "a1", noSiblings)
 
     composeRule.setContent { AssetDetailScreen(viewModel = viewModel, onNavigateToSettings = {}) }
 
@@ -116,10 +150,66 @@ class AssetDetailScreenTest {
   @Test
   fun `a load failure shows an error with a go-to-settings option`() {
     server.enqueue(MockResponse().setResponseCode(401))
-    val viewModel = AssetDetailViewModel(repository, settingsPrimed(), "a1")
+    val viewModel = AssetDetailViewModel(repository, settingsPrimed(), "a1", noSiblings)
 
     composeRule.setContent { AssetDetailScreen(viewModel = viewModel, onNavigateToSettings = {}) }
 
     waitForText(string(R.string.error_unauthorized))
+  }
+
+  @Test
+  fun `swiping up moves to the next sibling asset`() {
+    val fetch: suspend (Int?) -> ImmichResult<TimelinePage> = {
+      ImmichResult.Success(TimelinePage(items = listOf(asset("a1"), asset("a2")), nextPage = null))
+    }
+    val viewModel = AssetDetailViewModel(repository, settingsPrimed(), "a1", fetch)
+
+    composeRule.setContent { AssetDetailScreen(viewModel = viewModel, onNavigateToSettings = {}) }
+    waitForContentDescription("a1.jpg")
+
+    composeRule.onNodeWithContentDescription("a1.jpg").performTouchInput { swipeUp() }
+
+    waitForContentDescription("a2.jpg")
+  }
+
+  @Test
+  fun `swiping down at the first asset stays on it`() {
+    val fetch: suspend (Int?) -> ImmichResult<TimelinePage> = {
+      ImmichResult.Success(TimelinePage(items = listOf(asset("a1"), asset("a2")), nextPage = null))
+    }
+    val viewModel = AssetDetailViewModel(repository, settingsPrimed(), "a1", fetch)
+
+    composeRule.setContent { AssetDetailScreen(viewModel = viewModel, onNavigateToSettings = {}) }
+    waitForContentDescription("a1.jpg")
+
+    composeRule.onNodeWithContentDescription("a1.jpg").performTouchInput { swipeDown() }
+
+    waitForContentDescription("a1.jpg")
+  }
+
+  @Test
+  fun `pinching to zoom in consumes a following swipe as pan, not next-photo navigation`() {
+    val fetch: suspend (Int?) -> ImmichResult<TimelinePage> = {
+      ImmichResult.Success(TimelinePage(items = listOf(asset("a1"), asset("a2")), nextPage = null))
+    }
+    val viewModel = AssetDetailViewModel(repository, settingsPrimed(), "a1", fetch)
+
+    composeRule.setContent { AssetDetailScreen(viewModel = viewModel, onNavigateToSettings = {}) }
+    waitForContentDescription("a1.jpg")
+
+    // Two-finger pinch-out: start close together at the center, spread apart to zoom in.
+    composeRule.onNodeWithContentDescription("a1.jpg").performTouchInput {
+      down(0, center - Offset(20f, 0f))
+      down(1, center + Offset(20f, 0f))
+      moveTo(0, center - Offset(150f, 0f))
+      moveTo(1, center + Offset(150f, 0f))
+      up(0)
+      up(1)
+    }
+
+    // Now zoomed in: a single-finger swipe up should pan the photo, not advance to the next one.
+    composeRule.onNodeWithContentDescription("a1.jpg").performTouchInput { swipeUp() }
+
+    waitForContentDescription("a1.jpg")
   }
 }

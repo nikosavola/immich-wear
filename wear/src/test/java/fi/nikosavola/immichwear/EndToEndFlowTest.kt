@@ -10,6 +10,8 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeLeft
 import androidx.test.core.app.ApplicationProvider
 import fi.nikosavola.immichwear.ui.MainActivity
 import okhttp3.mockwebserver.MockResponse
@@ -116,25 +118,26 @@ class EndToEndFlowTest {
     composeRule.onNodeWithText(string(R.string.timeline_title)).performClick()
     waitForContentDescription("asset-1.jpg")
 
-    // Timeline -> AssetDetail.
+    // Timeline -> AssetDetail. AssetDetailViewModel re-runs the timeline query to locate this
+    // asset among its siblings for next/previous paging, so this enqueues the same shape of
+    // response Timeline itself got, not a single-asset GET.
     server.enqueue(
       MockResponse()
         .setBody(
-          """{"id": "asset-1", "type": "IMAGE", "originalFileName": "asset-1.jpg",""" +
-            """ "isFavorite": false, "localDateTime": "2026-01-01T00:00:00Z"}"""
+          """{"assets": {"items": [{"id": "asset-1", "type": "IMAGE",""" +
+            """ "originalFileName": "asset-1.jpg", "isFavorite": false,""" +
+            """ "localDateTime": "2026-01-01T00:00:00Z"}], "nextPage": null}}"""
         )
     )
     composeRule.onNodeWithContentDescription("asset-1.jpg").performClick()
+    waitForContentDescription("asset-1.jpg")
+
+    // Swipe left to reveal the details panel, which holds the favorite toggle.
+    composeRule.onNodeWithContentDescription("asset-1.jpg").performTouchInput { swipeLeft() }
     waitForText("♡")
 
     // Toggle favorite.
-    server.enqueue(
-      MockResponse()
-        .setBody(
-          """{"id": "asset-1", "type": "IMAGE", "originalFileName": "asset-1.jpg",""" +
-            """ "isFavorite": true, "localDateTime": "2026-01-01T00:00:00Z"}"""
-        )
-    )
+    server.enqueue(MockResponse().setBody(""))
     composeRule.onNodeWithText("♡").performClick()
 
     waitForText("♥")

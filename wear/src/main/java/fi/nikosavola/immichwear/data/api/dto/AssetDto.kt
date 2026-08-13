@@ -26,4 +26,18 @@ data class AssetDto(
   // glance, not to render a formatted duration label - out of scope for v1.
   val duration: Int? = null,
   val thumbhash: String? = null,
+  // Only present on the single-asset GET /assets/{id} response, not on search/metadata results -
+  // the asset detail screen's metadata panel is the only consumer.
+  val exifInfo: ExifInfoDto? = null,
+)
+
+@Serializable
+data class ExifInfoDto(
+  val make: String? = null,
+  val model: String? = null,
+  val exifImageWidth: Int? = null,
+  val exifImageHeight: Int? = null,
+  val city: String? = null,
+  val country: String? = null,
+  val fileSizeInByte: Long? = null,
 )
