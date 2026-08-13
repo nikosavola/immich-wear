@@ -101,4 +101,48 @@ class ImmichRepositoryTest {
     assertNull(settings.apiKey)
     assertNull(settings.email)
   }
+
+  @Test
+  fun `timeline fails with NotConfigured before a server is connected`() = runTest {
+    val result = repository.timeline()
+
+    assertEquals(ImmichResult.Failure(ImmichError.NotConfigured), result)
+    assertEquals(0, server.requestCount)
+  }
+
+  @Test
+  fun `timeline posts the page size and order, and parses nextPage as an int`() = runTest {
+    server.enqueue(MockResponse().setBody("""{"id": "u1", "email": "$EMAIL"}"""))
+    repository.connect(server.url("/").toString(), API_KEY)
+    server.takeRequest() // the connect() request; not under test here.
+    server.enqueue(
+      MockResponse()
+        .setBody(
+          """{"assets": {"items": [{"id": "a1", "type": "IMAGE", "originalFileName": "a1.jpg",""" +
+            """ "localDateTime": "2026-01-01T00:00:00Z"}], "nextPage": "2"}}"""
+        )
+    )
+
+    val result = repository.timeline()
+
+    assertTrue(result is ImmichResult.Success)
+    val page = (result as ImmichResult.Success).value
+    assertEquals(1, page.items.size)
+    assertEquals("a1", page.items[0].id)
+    assertEquals(2, page.nextPage)
+    assertEquals("/api/search/metadata", server.takeRequest().path)
+  }
+
+  @Test
+  fun `timeline treats a non-numeric nextPage as the end of the list`() = runTest {
+    server.enqueue(MockResponse().setBody("""{"id": "u1", "email": "$EMAIL"}"""))
+    repository.connect(server.url("/").toString(), API_KEY)
+    server.enqueue(
+      MockResponse().setBody("""{"assets": {"items": [], "nextPage": "not-a-number"}}""")
+    )
+
+    val result = repository.timeline()
+
+    assertEquals(null, (result as ImmichResult.Success).value.nextPage)
+  }
 }

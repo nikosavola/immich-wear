@@ -15,6 +15,10 @@
     <string name="settings_sign_out_button">Sign out</string>
     <string name="settings_signed_in_account">Signed in as %1$s</string>
 
+    <string name="timeline_title">Recent photos</string>
+    <string name="timeline_empty">No photos yet.</string>
+    <string name="timeline_load_more_button">Load more</string>
+
     <string name="error_unauthorized">Invalid API key. Please connect again.</string>
     <string name="error_offline">Can\'t reach the server. Check the address and your connection.</string>
     <string name="error_http">Something went wrong (code %1$d).</string>
