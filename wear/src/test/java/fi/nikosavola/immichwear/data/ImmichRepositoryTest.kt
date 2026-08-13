@@ -2,6 +2,8 @@ package fi.nikosavola.immichwear.data
 
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import fi.nikosavola.immichwear.data.api.createImmichClients
+import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -84,6 +86,36 @@ class ImmichRepositoryTest {
     val result = repository.connect(server.url("/").toString(), "wrong-key")
 
     assertEquals(ImmichResult.Failure(ImmichError.Unauthorized), result)
+    val settings = settingsStore.currentSettings()
+    assertNull(settings.serverUrl)
+    assertNull(settings.apiKey)
+  }
+
+  @Test
+  fun `connect trims a clipboard-pasted api key before persisting or sending it`() = runTest {
+    server.enqueue(MockResponse().setBody("""{"id": "u1", "email": "$EMAIL"}"""))
+
+    repository.connect(server.url("/").toString(), "$API_KEY\n")
+
+    assertEquals(API_KEY, server.takeRequest().getHeader("x-api-key"))
+    assertEquals(API_KEY, settingsStore.currentSettings().apiKey)
+  }
+
+  @Test
+  fun `cancelling connect while validating rolls back the persisted credentials`() = runTest {
+    server.enqueue(
+      MockResponse()
+        .setBody("""{"id": "u1", "email": "$EMAIL"}""")
+        .setBodyDelay(10, TimeUnit.SECONDS)
+    )
+
+    val job = launch { repository.connect(server.url("/").toString(), API_KEY) }
+    // Give the request time to actually leave (assert it did), then simulate the Settings screen
+    // being swipe-dismissed while validation is still in flight.
+    server.takeRequest(2, TimeUnit.SECONDS)
+    job.cancel()
+    job.join()
+
     val settings = settingsStore.currentSettings()
     assertNull(settings.serverUrl)
     assertNull(settings.apiKey)

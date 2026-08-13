@@ -21,7 +21,7 @@ class HomeViewModel(settingsStore: SettingsStore) : ViewModel() {
     settingsStore.settings
       .map { settings ->
         if (settings.serverUrl != null && settings.apiKey != null) {
-          HomeUiState.Connected(settings.email)
+          HomeUiState.Connected
         } else {
           HomeUiState.NotConnected
         }

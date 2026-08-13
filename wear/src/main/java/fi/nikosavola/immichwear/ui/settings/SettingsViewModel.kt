@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 class SettingsViewModel(
   private val repository: ImmichRepository,
   private val settingsStore: SettingsStore,
+  private val onSignedOut: () -> Unit = {},
 ) : ViewModel() {
   private val mutableUiState = MutableStateFlow<SettingsUiState>(SettingsUiState.Loading)
   val uiState: StateFlow<SettingsUiState> = mutableUiState.asStateFlow()
@@ -39,6 +40,10 @@ class SettingsViewModel(
 
   fun signOut(): Job = viewModelScope.launch {
     repository.signOut()
+    // Cached thumbnails/previews are keyed by placeholder-host URLs that are identical across
+    // servers and accounts, so without this they would silently persist on-device (and be shown
+    // to) whatever connects next.
+    onSignedOut()
     mutableUiState.value = SettingsUiState.SignedOut()
   }
 

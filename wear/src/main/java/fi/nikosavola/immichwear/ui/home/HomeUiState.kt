@@ -5,5 +5,5 @@ sealed interface HomeUiState {
 
   data object NotConnected : HomeUiState
 
-  data class Connected(val email: String?) : HomeUiState
+  data object Connected : HomeUiState
 }

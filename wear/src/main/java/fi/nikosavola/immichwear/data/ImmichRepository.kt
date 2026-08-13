@@ -9,6 +9,8 @@ import fi.nikosavola.immichwear.data.api.dto.UpdateAssetRequest
 import fi.nikosavola.immichwear.data.api.dto.UserDto
 import java.io.IOException
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerializationException
 import retrofit2.HttpException
 
@@ -33,20 +35,40 @@ data class TimelinePage(val items: List<AssetDto>, val nextPage: Int?)
 class ImmichRepository(private val api: ImmichApi, private val settingsStore: SettingsStore) {
   /**
    * Normalizes and persists [serverUrlInput] and [apiKey], then validates them with `GET
-   * /users/me`. Never leaves an unvalidated or rejected server/key pair persisted.
+   * /users/me`. Never leaves an unvalidated or rejected server/key pair persisted - including if
+   * the caller is cancelled (e.g. the Settings screen is swipe-dismissed) while the validation
+   * request is still in flight: the rollback below runs under [NonCancellable] specifically so a
+   * cancellation can't skip it and strand invalid credentials.
    */
   suspend fun connect(serverUrlInput: String, apiKey: String): ImmichResult<UserDto> {
     val normalizedUrl =
       normalizeServerUrl(serverUrlInput)
         ?: return ImmichResult.Failure(ImmichError.InvalidServerUrl)
+    // A phone-clipboard paste routinely carries a trailing newline, which OkHttp rejects as an
+    // invalid header value - surfacing as a confusing "offline" error for what is really a
+    // whitespace problem.
+    val trimmedApiKey = apiKey.trim()
 
     settingsStore.setServerUrl(normalizedUrl)
-    settingsStore.setApiKey(apiKey)
+    settingsStore.setApiKey(trimmedApiKey)
 
-    return when (val userResult = runCatchingImmich { api.getCurrentUser() }) {
+    val userResult =
+      try {
+        runCatchingImmich { api.getCurrentUser() }
+      } catch (e: CancellationException) {
+        withContext(NonCancellable) {
+          settingsStore.setServerUrl(null)
+          settingsStore.setApiKey(null)
+        }
+        throw e
+      }
+
+    return when (userResult) {
       is ImmichResult.Failure -> {
-        settingsStore.setServerUrl(null)
-        settingsStore.setApiKey(null)
+        withContext(NonCancellable) {
+          settingsStore.setServerUrl(null)
+          settingsStore.setApiKey(null)
+        }
         userResult
       }
       is ImmichResult.Success -> {

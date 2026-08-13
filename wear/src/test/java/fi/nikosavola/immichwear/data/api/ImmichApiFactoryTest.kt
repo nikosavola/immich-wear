@@ -10,6 +10,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
+import retrofit2.HttpException
 
 private const val API_KEY = "test-api-key"
 
@@ -102,6 +103,31 @@ class ImmichApiFactoryTest {
       assertEquals("POST", recorded.method)
       assertEquals("/api/search/metadata", recorded.path)
       assertEquals("""{"size":30,"order":"desc"}""", recorded.body.readUtf8())
+    }
+  }
+
+  @Test
+  fun `a redirect is surfaced as an http error instead of followed`() {
+    runTest {
+      val clients =
+        createImmichClients(apiKey = { API_KEY }, serverBaseUrl = { server.url("/").toString() })
+      server.enqueue(
+        MockResponse()
+          .setResponseCode(302)
+          .setHeader("Location", server.url("/redirected").toString())
+      )
+      // Would be served next if the client incorrectly followed the redirect above.
+      server.enqueue(MockResponse().setBody("""{"res": "pong"}"""))
+
+      try {
+        clients.api.ping()
+        error("expected the 302 to surface as an HttpException")
+      } catch (e: HttpException) {
+        assertEquals(302, e.code())
+      }
+      // Only the first request (the redirect response itself) should have gone out; following it
+      // would carry the x-api-key header to whatever host Location names.
+      assertEquals(1, server.requestCount)
     }
   }
 }

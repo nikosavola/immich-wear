@@ -35,6 +35,13 @@ fun createImmichClients(apiKey: () -> String?, serverBaseUrl: () -> String?): Im
       .connectTimeout(CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
       .readTimeout(READ_WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
       .writeTimeout(READ_WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+      // OkHttp forwards custom headers (including x-api-key) across a followed redirect even to a
+      // different host; a misconfigured reverse proxy or a captive-portal redirect on the
+      // explicitly-supported cleartext http:// path could otherwise leak the key. A self-hosted
+      // Immich instance has no legitimate reason to redirect its own API, so surface a redirect as
+      // an HTTP error instead of following it.
+      .followRedirects(false)
+      .followSslRedirects(false)
       .addInterceptor(ApiKeyInterceptor(apiKey))
       .addInterceptor(DynamicBaseUrlInterceptor(serverBaseUrl))
       .build()

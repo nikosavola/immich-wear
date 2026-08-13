@@ -16,10 +16,11 @@ internal suspend fun loadPagedAssets(
 ): TimelineUiState =
   when (val result = fetch(page)) {
     is ImmichResult.Success -> {
-      TimelineUiState.Loaded(
-        items = existing + result.value.items,
-        nextPage = result.value.nextPage,
-      )
+      // Pagination is by page number over a live, newest-first list: a page fetched after new
+      // assets landed on the server can overlap the previous page. Deduping by id keeps that from
+      // producing duplicate LazyColumn keys (a hard crash) or a visibly repeated row.
+      val items = (existing + result.value.items).distinctBy { it.id }
+      TimelineUiState.Loaded(items = items, nextPage = result.value.nextPage)
     }
     is ImmichResult.Failure -> {
       if (existing.isEmpty()) {

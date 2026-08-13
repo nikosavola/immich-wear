@@ -81,6 +81,10 @@ private fun SettingsDestination(appContainer: AppContainer) {
             SettingsViewModel(
               repository = appContainer.repository,
               settingsStore = appContainer.settingsStore,
+              onSignedOut = {
+                appContainer.imageLoader.memoryCache?.clear()
+                appContainer.imageLoader.diskCache?.clear()
+              },
             )
           }
         }
