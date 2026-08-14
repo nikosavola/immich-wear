@@ -57,7 +57,11 @@ class AssetDetailViewModel(
           val index = assets.indexOfFirst { it.id == assetId }
           if (index >= 0) {
             return AssetDetailUiState.Loaded(
-              assets = assets,
+              // The search/metadata query that finds siblings for paging never carries exifInfo
+              // (only GET /assets/{id} does) - enrich just the opened asset with a follow-up
+              // fetch so the details panel has EXIF to show. Best-effort: on failure this just
+              // keeps the plain entry from the list, same as this class's other silent fallbacks.
+              assets = withExifInfo(assets, index, assetId),
               currentIndex = index,
               nextPage = result.value.nextPage,
             )
@@ -74,6 +78,16 @@ class AssetDetailViewModel(
       is ImmichResult.Failure -> AssetDetailUiState.Error(single.error)
     }
   }
+
+  private suspend fun withExifInfo(
+    assets: List<AssetDto>,
+    index: Int,
+    assetId: String,
+  ): List<AssetDto> =
+    when (val result = repository.asset(assetId)) {
+      is ImmichResult.Success -> assets.toMutableList().apply { set(index, result.value) }
+      is ImmichResult.Failure -> assets
+    }
 
   fun previous() {
     val state = mutableUiState.value

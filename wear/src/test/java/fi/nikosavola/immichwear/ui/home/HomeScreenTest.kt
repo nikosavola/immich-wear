@@ -14,8 +14,13 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.wear.compose.material3.Text
 import fi.nikosavola.immichwear.R
 import fi.nikosavola.immichwear.data.FakeApiKeyCipher
+import fi.nikosavola.immichwear.data.ImmichRepository
 import fi.nikosavola.immichwear.data.SettingsStore
+import fi.nikosavola.immichwear.data.api.createImmichClients
 import kotlinx.coroutines.runBlocking
+import okhttp3.mockwebserver.MockResponse
+import okhttp3.mockwebserver.MockWebServer
+import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -27,6 +32,7 @@ import org.robolectric.annotation.GraphicsMode
 
 private const val WAIT_TIMEOUT_MS = 5_000L
 private const val MARKER = "nav-marker"
+private const val NO_ASSETS_RESPONSE = """{"assets": {"items": [], "nextPage": null}}"""
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -35,10 +41,14 @@ class HomeScreenTest {
 
   @get:Rule val tempFolder = TemporaryFolder()
 
+  private lateinit var server: MockWebServer
   private lateinit var settingsStore: SettingsStore
+  private lateinit var repository: ImmichRepository
 
   @Before
   fun setUp() {
+    server = MockWebServer()
+    server.start()
     settingsStore =
       SettingsStore(
         PreferenceDataStoreFactory.create(
@@ -46,6 +56,17 @@ class HomeScreenTest {
         ),
         FakeApiKeyCipher(),
       )
+    val clients =
+      createImmichClients(
+        apiKey = settingsStore.apiKeySupplier,
+        serverBaseUrl = settingsStore.serverUrlSupplier,
+      )
+    repository = ImmichRepository(clients.api, settingsStore)
+  }
+
+  @After
+  fun tearDown() {
+    server.shutdown()
   }
 
   private fun string(@StringRes resId: Int): String =
@@ -59,7 +80,7 @@ class HomeScreenTest {
 
   @Test
   fun `not connected shows a prompt and connect button navigating to settings`() {
-    val viewModel = HomeViewModel(settingsStore)
+    val viewModel = HomeViewModel(settingsStore, repository)
     var navigatedToSettings by mutableStateOf(false)
 
     composeRule.setContent {
@@ -83,10 +104,11 @@ class HomeScreenTest {
   @Test
   fun `connected shows Recent photos and Albums rows that navigate`() {
     runBlocking {
-      settingsStore.setServerUrl("https://immich.example.com/")
+      settingsStore.setServerUrl(server.url("/").toString())
       settingsStore.setApiKey("key")
     }
-    val viewModel = HomeViewModel(settingsStore)
+    server.enqueue(MockResponse().setBody(NO_ASSETS_RESPONSE)) // hero-photo fetch, empty library
+    val viewModel = HomeViewModel(settingsStore, repository)
     var navigatedTo by mutableStateOf<String?>(null)
 
     composeRule.setContent {
@@ -110,10 +132,11 @@ class HomeScreenTest {
   @Test
   fun `connected shows a Favorites row that navigates`() {
     runBlocking {
-      settingsStore.setServerUrl("https://immich.example.com/")
+      settingsStore.setServerUrl(server.url("/").toString())
       settingsStore.setApiKey("key")
     }
-    val viewModel = HomeViewModel(settingsStore)
+    server.enqueue(MockResponse().setBody(NO_ASSETS_RESPONSE)) // hero-photo fetch, empty library
+    val viewModel = HomeViewModel(settingsStore, repository)
     var navigatedTo by mutableStateOf<String?>(null)
 
     composeRule.setContent {
@@ -132,5 +155,40 @@ class HomeScreenTest {
 
     waitForText(MARKER)
     assertTrue(navigatedTo == "favorites")
+  }
+
+  @Test
+  fun `connected with a recent photo shows a photo-backed Recent photos card that navigates`() {
+    runBlocking {
+      settingsStore.setServerUrl(server.url("/").toString())
+      settingsStore.setApiKey("key")
+    }
+    server.enqueue(
+      MockResponse()
+        .setBody(
+          """{"assets": {"items": [{"id": "a1", "type": "IMAGE",""" +
+            """ "originalFileName": "a1.jpg", "isFavorite": false,""" +
+            """ "localDateTime": "2026-01-01T00:00:00Z"}], "nextPage": null}}"""
+        )
+    )
+    val viewModel = HomeViewModel(settingsStore, repository)
+    var navigatedTo by mutableStateOf<String?>(null)
+
+    composeRule.setContent {
+      HomeScreen(
+        viewModel = viewModel,
+        onNavigateToTimeline = { navigatedTo = "timeline" },
+        onNavigateToAlbums = { navigatedTo = "albums" },
+        onNavigateToFavorites = { navigatedTo = "favorites" },
+        onNavigateToSettings = { navigatedTo = "settings" },
+      )
+      if (navigatedTo != null) Text(text = MARKER)
+    }
+    waitForText(string(R.string.timeline_title))
+
+    composeRule.onNodeWithText(string(R.string.timeline_title)).performClick()
+
+    waitForText(MARKER)
+    assertTrue(navigatedTo == "timeline")
   }
 }

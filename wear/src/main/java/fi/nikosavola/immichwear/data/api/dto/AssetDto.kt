@@ -35,9 +35,15 @@ data class AssetDto(
 data class ExifInfoDto(
   val make: String? = null,
   val model: String? = null,
+  val lensModel: String? = null,
   val exifImageWidth: Int? = null,
   val exifImageHeight: Int? = null,
   val city: String? = null,
   val country: String? = null,
   val fileSizeInByte: Long? = null,
+  val fNumber: Double? = null,
+  // Immich already formats this as a fraction string, e.g. "1/250", not a raw number.
+  val exposureTime: String? = null,
+  val iso: Int? = null,
+  val focalLength: Double? = null,
 )

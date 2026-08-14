@@ -73,7 +73,10 @@ fun ImmichNavHost(
 private fun HomeDestination(appContainer: AppContainer, navController: NavHostController) {
   val viewModel: HomeViewModel =
     viewModel(
-      factory = viewModelFactory { initializer { HomeViewModel(appContainer.settingsStore) } }
+      factory =
+        viewModelFactory {
+          initializer { HomeViewModel(appContainer.settingsStore, appContainer.repository) }
+        }
     )
   HomeScreen(
     viewModel = viewModel,

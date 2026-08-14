@@ -37,6 +37,16 @@ private val FRESHNESS_INTERVAL_MILLIS = TimeUnit.HOURS.toMillis(1)
 private const val TILE_IMAGE_SIZE_PX = 300
 private const val PHOTO_RESOURCE_ID_PREFIX = "photo:"
 
+// The server's thumbnail isn't guaranteed to be square, and the tile's InlineImageResource has one
+// fixed width/height - stretching a non-square source with createScaledBitmap would distort it, so
+// crop to the largest centered square first (a "zoomed to fill" crop, not a stretch).
+internal fun centerCropSquare(bitmap: Bitmap): Bitmap {
+  val side = minOf(bitmap.width, bitmap.height)
+  val x = (bitmap.width - side) / 2
+  val y = (bitmap.height - side) / 2
+  return Bitmap.createBitmap(bitmap, x, y, side, side)
+}
+
 /**
  * A swipeable Tile surface showing a random favorited photo (or, absent any favorites, a random
  * recent photo). Bound on demand by the system, possibly with the main app process already evicted,
@@ -154,7 +164,12 @@ class ImmichTileService : TileService() {
       ImageRequest.Builder(this).data(thumbnailUrl(asset.id, AssetThumbnailSize.THUMBNAIL)).build()
     val result = appContainer.imageLoader.execute(request)
     val bitmap = ((result as? SuccessResult)?.image as? BitmapImage)?.bitmap ?: return null
-    return Bitmap.createScaledBitmap(bitmap, TILE_IMAGE_SIZE_PX, TILE_IMAGE_SIZE_PX, true)
+    return Bitmap.createScaledBitmap(
+      centerCropSquare(bitmap),
+      TILE_IMAGE_SIZE_PX,
+      TILE_IMAGE_SIZE_PX,
+      true,
+    )
   }
 
   /**

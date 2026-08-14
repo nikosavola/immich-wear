@@ -3,6 +3,7 @@ package fi.nikosavola.immichwear.ui.detail
 import android.content.Context
 import androidx.annotation.StringRes
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.test.doubleClick
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
@@ -162,6 +163,7 @@ class AssetDetailScreenTest {
     val fetch: suspend (Int?) -> ImmichResult<TimelinePage> = {
       ImmichResult.Success(TimelinePage(items = listOf(asset("a1"), asset("a2")), nextPage = null))
     }
+    server.enqueue(MockResponse().setBody(assetJson())) // exif-enrichment GET for the found asset
     val viewModel = AssetDetailViewModel(repository, settingsPrimed(), "a1", fetch)
 
     composeRule.setContent { AssetDetailScreen(viewModel = viewModel, onNavigateToSettings = {}) }
@@ -177,6 +179,7 @@ class AssetDetailScreenTest {
     val fetch: suspend (Int?) -> ImmichResult<TimelinePage> = {
       ImmichResult.Success(TimelinePage(items = listOf(asset("a1"), asset("a2")), nextPage = null))
     }
+    server.enqueue(MockResponse().setBody(assetJson())) // exif-enrichment GET for the found asset
     val viewModel = AssetDetailViewModel(repository, settingsPrimed(), "a1", fetch)
 
     composeRule.setContent { AssetDetailScreen(viewModel = viewModel, onNavigateToSettings = {}) }
@@ -188,10 +191,58 @@ class AssetDetailScreenTest {
   }
 
   @Test
+  fun `opening an asset found among its siblings still enriches it with EXIF details`() {
+    // The search/metadata response used to locate siblings never carries exifInfo - only the
+    // single-asset GET this enqueues does. Regression test for that enrichment fetch.
+    val fetch: suspend (Int?) -> ImmichResult<TimelinePage> = {
+      ImmichResult.Success(TimelinePage(items = listOf(asset("a1")), nextPage = null))
+    }
+    server.enqueue(
+      MockResponse()
+        .setBody(
+          """{"id": "a1", "type": "IMAGE", "originalFileName": "a1.jpg", "isFavorite": false,""" +
+            """ "localDateTime": "2026-01-01T00:00:00Z",""" +
+            """ "exifInfo": {"make": "Fujifilm", "model": "X-T5"}}"""
+        )
+    )
+    val viewModel = AssetDetailViewModel(repository, settingsPrimed(), "a1", fetch)
+
+    composeRule.setContent { AssetDetailScreen(viewModel = viewModel, onNavigateToSettings = {}) }
+    waitForContentDescription("a1.jpg")
+
+    composeRule.onNodeWithContentDescription("a1.jpg").performTouchInput { swipeLeft() }
+
+    waitForText("Fujifilm X-T5")
+  }
+
+  @Test
+  fun `double-tapping the photo zooms in, and double-tapping again zooms back out`() {
+    val fetch: suspend (Int?) -> ImmichResult<TimelinePage> = {
+      ImmichResult.Success(TimelinePage(items = listOf(asset("a1"), asset("a2")), nextPage = null))
+    }
+    server.enqueue(MockResponse().setBody(assetJson())) // exif-enrichment GET for the found asset
+    val viewModel = AssetDetailViewModel(repository, settingsPrimed(), "a1", fetch)
+
+    composeRule.setContent { AssetDetailScreen(viewModel = viewModel, onNavigateToSettings = {}) }
+    waitForContentDescription("a1.jpg")
+
+    // Zoomed in: a single-finger swipe up should pan the photo, not advance to the next one.
+    composeRule.onNodeWithContentDescription("a1.jpg").performTouchInput { doubleClick() }
+    composeRule.onNodeWithContentDescription("a1.jpg").performTouchInput { swipeUp() }
+    waitForContentDescription("a1.jpg")
+
+    // Double-tapping again zooms back to 1x, so the same swipe now advances to the next photo.
+    composeRule.onNodeWithContentDescription("a1.jpg").performTouchInput { doubleClick() }
+    composeRule.onNodeWithContentDescription("a1.jpg").performTouchInput { swipeUp() }
+    waitForContentDescription("a2.jpg")
+  }
+
+  @Test
   fun `pinching to zoom in consumes a following swipe as pan, not next-photo navigation`() {
     val fetch: suspend (Int?) -> ImmichResult<TimelinePage> = {
       ImmichResult.Success(TimelinePage(items = listOf(asset("a1"), asset("a2")), nextPage = null))
     }
+    server.enqueue(MockResponse().setBody(assetJson())) // exif-enrichment GET for the found asset
     val viewModel = AssetDetailViewModel(repository, settingsPrimed(), "a1", fetch)
 
     composeRule.setContent { AssetDetailScreen(viewModel = viewModel, onNavigateToSettings = {}) }

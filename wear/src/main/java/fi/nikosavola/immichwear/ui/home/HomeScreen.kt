@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.wear.compose.foundation.lazy.TransformingLazyColumn
@@ -15,10 +16,14 @@ import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.SurfaceTransformation
 import androidx.wear.compose.material3.Text
+import androidx.wear.compose.material3.TitleCard
 import androidx.wear.compose.material3.lazy.TransformationSpec
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
 import androidx.wear.compose.material3.lazy.transformedHeight
+import coil3.compose.rememberAsyncImagePainter
 import fi.nikosavola.immichwear.R
+import fi.nikosavola.immichwear.data.api.AssetThumbnailSize
+import fi.nikosavola.immichwear.data.api.thumbnailUrl
 
 @Composable
 fun HomeScreen(
@@ -54,6 +59,7 @@ fun HomeScreen(
         is HomeUiState.Connected -> {
           connectedHomeItems(
             transformationSpec = transformationSpec,
+            heroAssetId = state.heroAssetId,
             onNavigateToTimeline = onNavigateToTimeline,
             onNavigateToAlbums = onNavigateToAlbums,
             onNavigateToFavorites = onNavigateToFavorites,
@@ -67,18 +73,33 @@ fun HomeScreen(
 
 private fun TransformingLazyColumnScope.connectedHomeItems(
   transformationSpec: TransformationSpec,
+  heroAssetId: String?,
   onNavigateToTimeline: () -> Unit,
   onNavigateToAlbums: () -> Unit,
   onNavigateToFavorites: () -> Unit,
   onNavigateToSettings: () -> Unit,
 ) {
   item {
-    Button(
-      onClick = onNavigateToTimeline,
-      modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec),
-      transformation = SurfaceTransformation(transformationSpec),
-    ) {
-      Text(text = stringResource(R.string.timeline_title))
+    if (heroAssetId != null) {
+      TitleCard(
+        onClick = onNavigateToTimeline,
+        containerPainter =
+          rememberAsyncImagePainter(
+            model = thumbnailUrl(heroAssetId, AssetThumbnailSize.THUMBNAIL),
+            contentScale = ContentScale.Crop,
+          ),
+        title = { Text(text = stringResource(R.string.timeline_title)) },
+        modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec),
+        transformation = SurfaceTransformation(transformationSpec),
+      )
+    } else {
+      Button(
+        onClick = onNavigateToTimeline,
+        modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec),
+        transformation = SurfaceTransformation(transformationSpec),
+      ) {
+        Text(text = stringResource(R.string.timeline_title))
+      }
     }
   }
   item {

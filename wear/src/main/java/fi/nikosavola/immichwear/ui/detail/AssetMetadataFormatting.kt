@@ -12,6 +12,8 @@ import java.time.format.DateTimeParseException
 fun ExifDetails(exif: ExifInfoDto) {
   formatDimensions(exif)?.let { Text(text = it, textAlign = TextAlign.Center) }
   formatCamera(exif)?.let { Text(text = it, textAlign = TextAlign.Center) }
+  exif.lensModel?.let { Text(text = it, textAlign = TextAlign.Center) }
+  formatCameraSettings(exif)?.let { Text(text = it, textAlign = TextAlign.Center) }
   formatLocation(exif)?.let { Text(text = it, textAlign = TextAlign.Center) }
   exif.fileSizeInByte?.let { Text(text = formatFileSize(it), textAlign = TextAlign.Center) }
 }
@@ -24,6 +26,17 @@ private fun formatDimensions(exif: ExifInfoDto): String? {
 
 private fun formatCamera(exif: ExifInfoDto): String? =
   listOfNotNull(exif.make, exif.model).joinToString(" ").ifBlank { null }
+
+private fun formatCameraSettings(exif: ExifInfoDto): String? {
+  val parts =
+    listOfNotNull(
+      exif.fNumber?.let { "f/%.1f".format(it) },
+      exif.exposureTime?.let { "${it}s" },
+      exif.iso?.let { "ISO $it" },
+      exif.focalLength?.let { "%.0fmm".format(it) },
+    )
+  return parts.joinToString(" · ").ifBlank { null }
+}
 
 private fun formatLocation(exif: ExifInfoDto): String? =
   listOfNotNull(exif.city, exif.country).joinToString(", ").ifBlank { null }
