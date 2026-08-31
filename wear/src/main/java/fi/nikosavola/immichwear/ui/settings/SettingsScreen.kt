@@ -52,7 +52,10 @@ private val FIELD_GROUP_SPACING = 16.dp
 private val FIELD_HORIZONTAL_PADDING = 8.dp
 
 @Composable
-fun SettingsScreen(viewModel: SettingsViewModel) {
+fun SettingsScreen(
+  viewModel: SettingsViewModel,
+  supportsDirectLogin: Boolean = SUPPORTS_DIRECT_WATCH_LOGIN,
+) {
   val uiState by viewModel.uiState.collectAsStateWithLifecycle()
   val scrollState = rememberScrollState()
 
@@ -90,6 +93,7 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
             apiKeyInput = apiKeyInput,
             onApiKeyInputChange = { apiKeyInput = it },
             onConnect = viewModel::connect,
+            supportsDirectLogin = supportsDirectLogin,
           )
         }
       }
@@ -183,6 +187,7 @@ private fun SignedOutContent(
   apiKeyInput: String,
   onApiKeyInputChange: (String) -> Unit,
   onConnect: (serverUrl: String, apiKey: String) -> Unit,
+  supportsDirectLogin: Boolean,
 ) {
   state.error?.let { error ->
     Text(
@@ -197,7 +202,7 @@ private fun SignedOutContent(
   Text(
     text =
       stringResource(
-        if (SUPPORTS_DIRECT_WATCH_LOGIN) {
+        if (supportsDirectLogin) {
           R.string.settings_companion_app_hint
         } else {
           R.string.settings_companion_app_required
@@ -210,7 +215,7 @@ private fun SignedOutContent(
   )
 
   // The fields below only exist in the "direct" build flavor - see SUPPORTS_DIRECT_WATCH_LOGIN.
-  if (SUPPORTS_DIRECT_WATCH_LOGIN) {
+  if (supportsDirectLogin) {
     LabeledSettingsField(
       label = stringResource(R.string.settings_server_url_label),
       value = serverUrlInput,

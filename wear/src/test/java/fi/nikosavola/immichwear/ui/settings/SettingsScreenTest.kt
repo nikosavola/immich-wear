@@ -2,6 +2,7 @@ package fi.nikosavola.immichwear.ui.settings
 
 import android.content.Context
 import androidx.annotation.StringRes
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextContains
@@ -166,6 +167,44 @@ class SettingsScreenTest {
     composeRule.onNodeWithText(string(R.string.settings_sign_out_button)).performClick()
 
     waitForText(string(R.string.settings_server_url_label))
+  }
+
+  @Test
+  fun `flips to signed in when the companion app writes settings independently`() {
+    val viewModel = SettingsViewModel(repository, settingsStore)
+    composeRule.setContent { SettingsScreen(viewModel = viewModel) }
+    waitForText(string(R.string.settings_server_url_label))
+
+    // Simulates PhoneLoginListenerService calling repository.connect() while Settings is open -
+    // not this screen's own Connect button, which already has its own coverage above.
+    runBlocking {
+      settingsStore.setServerUrl(server.url("/").toString())
+      settingsStore.setApiKey(API_KEY)
+      settingsStore.setEmail(EMAIL)
+    }
+
+    waitForText(string(R.string.settings_signed_in_account, EMAIL))
+  }
+
+  @Test
+  fun `playstore flavor hides direct entry and shows the companion-app-required message`() {
+    val viewModel = SettingsViewModel(repository, settingsStore)
+
+    composeRule.setContent { SettingsScreen(viewModel = viewModel, supportsDirectLogin = false) }
+
+    waitForText(string(R.string.settings_companion_app_required))
+    composeRule.onAllNodesWithText(string(R.string.settings_server_url_label)).assertCountEquals(0)
+    composeRule.onAllNodesWithText(string(R.string.settings_connect_button)).assertCountEquals(0)
+  }
+
+  @Test
+  fun `direct flavor shows the companion-app hint alongside the entry fields`() {
+    val viewModel = SettingsViewModel(repository, settingsStore)
+
+    composeRule.setContent { SettingsScreen(viewModel = viewModel, supportsDirectLogin = true) }
+
+    waitForText(string(R.string.settings_companion_app_hint))
+    composeRule.onNodeWithText(string(R.string.settings_connect_button)).assertIsNotEnabled()
   }
 
   @Test
