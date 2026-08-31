@@ -4,10 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import fi.nikosavola.immichwear.data.ImmichRepository
 import fi.nikosavola.immichwear.data.ImmichResult
-import fi.nikosavola.immichwear.data.Settings
 import fi.nikosavola.immichwear.data.TimelinePage
 import fi.nikosavola.immichwear.data.api.dto.AssetDto
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,7 +19,6 @@ private const val MAX_LOCATE_PAGES = 20
 
 class AssetDetailViewModel(
   private val repository: ImmichRepository,
-  private val settingsPrimed: Deferred<Settings>,
   private val assetId: String,
   private val fetchPage: suspend (page: Int?) -> ImmichResult<TimelinePage>,
 ) : ViewModel() {
@@ -33,7 +30,6 @@ class AssetDetailViewModel(
   }
 
   fun load(): Job = viewModelScope.launch {
-    settingsPrimed.await()
     mutableUiState.value = AssetDetailUiState.Loading
     mutableUiState.value = locateAsset()
   }

@@ -18,7 +18,7 @@ import fi.nikosavola.immichwear.data.FakeApiKeyCipher
 import fi.nikosavola.immichwear.data.ImmichRepository
 import fi.nikosavola.immichwear.data.SettingsStore
 import fi.nikosavola.immichwear.data.api.createImmichClients
-import kotlinx.coroutines.CompletableDeferred
+import fi.nikosavola.immichwear.ui.timeline.PagedAssetsViewModel
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -77,9 +77,6 @@ class FavoritesScreenTest {
     settingsStore.setApiKey(API_KEY)
   }
 
-  private fun settingsPrimed() =
-    CompletableDeferred(runBlocking { settingsStore.currentSettings() })
-
   private fun string(@StringRes resId: Int): String =
     ApplicationProvider.getApplicationContext<Context>().getString(resId)
 
@@ -103,7 +100,7 @@ class FavoritesScreenTest {
   fun `an empty favorites list shows the empty-state message`() {
     connect()
     server.enqueue(MockResponse().setBody("""{"assets": {"items": [], "nextPage": null}}"""))
-    val viewModel = FavoritesViewModel(repository, settingsPrimed())
+    val viewModel = PagedAssetsViewModel(repository::favorites)
 
     composeRule.setContent {
       FavoritesScreen(viewModel = viewModel, onAssetClick = {}, onNavigateToSettings = {})
@@ -120,7 +117,7 @@ class FavoritesScreenTest {
       MockResponse()
         .setBody("""{"assets": {"items": [${assetJson("asset-1")}], "nextPage": null}}""")
     )
-    val viewModel = FavoritesViewModel(repository, settingsPrimed())
+    val viewModel = PagedAssetsViewModel(repository::favorites)
     var clickedAssetId by mutableStateOf<String?>(null)
 
     composeRule.setContent {

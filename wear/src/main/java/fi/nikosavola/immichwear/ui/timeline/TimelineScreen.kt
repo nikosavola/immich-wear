@@ -13,7 +13,7 @@ import fi.nikosavola.immichwear.R
 
 @Composable
 fun TimelineScreen(
-  viewModel: TimelineViewModel,
+  viewModel: PagedAssetsViewModel,
   onAssetClick: (assetId: String) -> Unit,
   onNavigateToSettings: () -> Unit,
 ) {

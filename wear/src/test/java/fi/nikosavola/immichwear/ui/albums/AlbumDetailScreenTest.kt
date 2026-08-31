@@ -11,7 +11,6 @@ import fi.nikosavola.immichwear.data.FakeApiKeyCipher
 import fi.nikosavola.immichwear.data.ImmichRepository
 import fi.nikosavola.immichwear.data.SettingsStore
 import fi.nikosavola.immichwear.data.api.createImmichClients
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
@@ -68,9 +67,6 @@ class AlbumDetailScreenTest {
     server.shutdown()
   }
 
-  private fun settingsPrimed() =
-    CompletableDeferred(runBlocking { settingsStore.currentSettings() })
-
   private fun string(@StringRes resId: Int): String =
     ApplicationProvider.getApplicationContext<Context>().getString(resId)
 
@@ -104,7 +100,7 @@ class AlbumDetailScreenTest {
           """ "localDateTime": "2026-01-01T00:00:00Z"}], "nextPage": null}}""",
       albumBody = """{"id": "al1", "albumName": "Vacation", "assetCount": 1}""",
     )
-    val viewModel = AlbumDetailViewModel(repository, settingsPrimed(), "al1")
+    val viewModel = AlbumDetailViewModel(repository, "al1")
 
     composeRule.setContent {
       AlbumDetailScreen(viewModel = viewModel, onAssetClick = {}, onNavigateToSettings = {})
@@ -119,7 +115,7 @@ class AlbumDetailScreenTest {
       assetsBody = """{"assets": {"items": [], "nextPage": null}}""",
       albumBody = """{"id": "al1", "albumName": "Vacation", "assetCount": 0}""",
     )
-    val viewModel = AlbumDetailViewModel(repository, settingsPrimed(), "al1")
+    val viewModel = AlbumDetailViewModel(repository, "al1")
 
     composeRule.setContent {
       AlbumDetailScreen(viewModel = viewModel, onAssetClick = {}, onNavigateToSettings = {})

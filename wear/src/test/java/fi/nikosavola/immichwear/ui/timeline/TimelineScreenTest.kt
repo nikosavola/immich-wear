@@ -19,7 +19,6 @@ import fi.nikosavola.immichwear.data.FakeApiKeyCipher
 import fi.nikosavola.immichwear.data.ImmichRepository
 import fi.nikosavola.immichwear.data.SettingsStore
 import fi.nikosavola.immichwear.data.api.createImmichClients
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -77,9 +76,6 @@ class TimelineScreenTest {
     settingsStore.setApiKey(API_KEY)
   }
 
-  private fun settingsPrimed() =
-    CompletableDeferred(runBlocking { settingsStore.currentSettings() })
-
   private fun string(@StringRes resId: Int, vararg formatArgs: Any): String =
     ApplicationProvider.getApplicationContext<Context>().getString(resId, *formatArgs)
 
@@ -103,7 +99,7 @@ class TimelineScreenTest {
   fun `an empty timeline shows the empty-state message`() {
     connect()
     server.enqueue(MockResponse().setBody("""{"assets": {"items": [], "nextPage": null}}"""))
-    val viewModel = TimelineViewModel(repository, settingsPrimed())
+    val viewModel = PagedAssetsViewModel(repository::timeline)
 
     composeRule.setContent {
       TimelineScreen(viewModel = viewModel, onAssetClick = {}, onNavigateToSettings = {})
@@ -116,7 +112,7 @@ class TimelineScreenTest {
   fun `a load failure on the first page shows an error with a retry button`() {
     connect()
     server.enqueue(MockResponse().setResponseCode(500))
-    val viewModel = TimelineViewModel(repository, settingsPrimed())
+    val viewModel = PagedAssetsViewModel(repository::timeline)
 
     composeRule.setContent {
       TimelineScreen(viewModel = viewModel, onAssetClick = {}, onNavigateToSettings = {})
@@ -138,7 +134,7 @@ class TimelineScreenTest {
       MockResponse()
         .setBody("""{"assets": {"items": [${assetJson("asset-1")}], "nextPage": null}}""")
     )
-    val viewModel = TimelineViewModel(repository, settingsPrimed())
+    val viewModel = PagedAssetsViewModel(repository::timeline)
     var clickedAssetId by mutableStateOf<String?>(null)
 
     composeRule.setContent {
@@ -170,7 +166,7 @@ class TimelineScreenTest {
       MockResponse()
         .setBody("""{"assets": {"items": [${assetJson("asset-2")}], "nextPage": null}}""")
     )
-    val viewModel = TimelineViewModel(repository, settingsPrimed())
+    val viewModel = PagedAssetsViewModel(repository::timeline)
 
     composeRule.setContent {
       TimelineScreen(viewModel = viewModel, onAssetClick = {}, onNavigateToSettings = {})

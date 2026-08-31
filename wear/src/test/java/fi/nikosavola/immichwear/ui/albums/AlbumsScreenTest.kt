@@ -17,7 +17,6 @@ import fi.nikosavola.immichwear.data.FakeApiKeyCipher
 import fi.nikosavola.immichwear.data.ImmichRepository
 import fi.nikosavola.immichwear.data.SettingsStore
 import fi.nikosavola.immichwear.data.api.createImmichClients
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -74,9 +73,6 @@ class AlbumsScreenTest {
     server.shutdown()
   }
 
-  private fun settingsPrimed() =
-    CompletableDeferred(runBlocking { settingsStore.currentSettings() })
-
   private fun string(@StringRes resId: Int): String =
     ApplicationProvider.getApplicationContext<Context>().getString(resId)
 
@@ -89,7 +85,7 @@ class AlbumsScreenTest {
   @Test
   fun `an empty album list shows the empty-state message`() {
     server.enqueue(MockResponse().setBody("[]"))
-    val viewModel = AlbumsViewModel(repository, settingsPrimed())
+    val viewModel = AlbumsViewModel(repository)
 
     composeRule.setContent {
       AlbumsScreen(viewModel = viewModel, onAlbumClick = {}, onNavigateToSettings = {})
@@ -103,7 +99,7 @@ class AlbumsScreenTest {
     server.enqueue(
       MockResponse().setBody("""[{"id": "al1", "albumName": "Vacation", "assetCount": 3}]""")
     )
-    val viewModel = AlbumsViewModel(repository, settingsPrimed())
+    val viewModel = AlbumsViewModel(repository)
     var clickedAlbumId by mutableStateOf<String?>(null)
 
     composeRule.setContent {

@@ -25,7 +25,6 @@ import fi.nikosavola.immichwear.data.TimelinePage
 import fi.nikosavola.immichwear.data.api.createImmichClients
 import fi.nikosavola.immichwear.data.api.dto.AssetDto
 import fi.nikosavola.immichwear.data.api.dto.AssetTypeEnum
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -87,9 +86,6 @@ class AssetDetailScreenTest {
     server.shutdown()
   }
 
-  private fun settingsPrimed() =
-    CompletableDeferred(runBlocking { settingsStore.currentSettings() })
-
   private fun string(@StringRes resId: Int): String =
     ApplicationProvider.getApplicationContext<Context>().getString(resId)
 
@@ -121,7 +117,7 @@ class AssetDetailScreenTest {
   fun `swiping left over the photo reveals the details panel with the favorite toggle`() {
     server.enqueue(MockResponse().setBody(assetJson(isFavorite = false)))
     server.enqueue(MockResponse().setBody(""))
-    val viewModel = AssetDetailViewModel(repository, settingsPrimed(), "a1", noSiblings)
+    val viewModel = AssetDetailViewModel(repository, "a1", noSiblings)
 
     composeRule.setContent { AssetDetailScreen(viewModel = viewModel, onNavigateToSettings = {}) }
     waitForContentDescription("a1.jpg")
@@ -141,7 +137,7 @@ class AssetDetailScreenTest {
   @Test
   fun `a video asset shows the unsupported-playback message`() {
     server.enqueue(MockResponse().setBody(assetJson(type = "VIDEO")))
-    val viewModel = AssetDetailViewModel(repository, settingsPrimed(), "a1", noSiblings)
+    val viewModel = AssetDetailViewModel(repository, "a1", noSiblings)
 
     composeRule.setContent { AssetDetailScreen(viewModel = viewModel, onNavigateToSettings = {}) }
 
@@ -151,7 +147,7 @@ class AssetDetailScreenTest {
   @Test
   fun `a load failure shows an error with a go-to-settings option`() {
     server.enqueue(MockResponse().setResponseCode(401))
-    val viewModel = AssetDetailViewModel(repository, settingsPrimed(), "a1", noSiblings)
+    val viewModel = AssetDetailViewModel(repository, "a1", noSiblings)
 
     composeRule.setContent { AssetDetailScreen(viewModel = viewModel, onNavigateToSettings = {}) }
 
@@ -164,7 +160,7 @@ class AssetDetailScreenTest {
       ImmichResult.Success(TimelinePage(items = listOf(asset("a1"), asset("a2")), nextPage = null))
     }
     server.enqueue(MockResponse().setBody(assetJson())) // exif-enrichment GET for the found asset
-    val viewModel = AssetDetailViewModel(repository, settingsPrimed(), "a1", fetch)
+    val viewModel = AssetDetailViewModel(repository, "a1", fetch)
 
     composeRule.setContent { AssetDetailScreen(viewModel = viewModel, onNavigateToSettings = {}) }
     waitForContentDescription("a1.jpg")
@@ -180,7 +176,7 @@ class AssetDetailScreenTest {
       ImmichResult.Success(TimelinePage(items = listOf(asset("a1"), asset("a2")), nextPage = null))
     }
     server.enqueue(MockResponse().setBody(assetJson())) // exif-enrichment GET for the found asset
-    val viewModel = AssetDetailViewModel(repository, settingsPrimed(), "a1", fetch)
+    val viewModel = AssetDetailViewModel(repository, "a1", fetch)
 
     composeRule.setContent { AssetDetailScreen(viewModel = viewModel, onNavigateToSettings = {}) }
     waitForContentDescription("a1.jpg")
@@ -205,7 +201,7 @@ class AssetDetailScreenTest {
             """ "exifInfo": {"make": "Fujifilm", "model": "X-T5"}}"""
         )
     )
-    val viewModel = AssetDetailViewModel(repository, settingsPrimed(), "a1", fetch)
+    val viewModel = AssetDetailViewModel(repository, "a1", fetch)
 
     composeRule.setContent { AssetDetailScreen(viewModel = viewModel, onNavigateToSettings = {}) }
     waitForContentDescription("a1.jpg")
@@ -221,7 +217,7 @@ class AssetDetailScreenTest {
       ImmichResult.Success(TimelinePage(items = listOf(asset("a1"), asset("a2")), nextPage = null))
     }
     server.enqueue(MockResponse().setBody(assetJson())) // exif-enrichment GET for the found asset
-    val viewModel = AssetDetailViewModel(repository, settingsPrimed(), "a1", fetch)
+    val viewModel = AssetDetailViewModel(repository, "a1", fetch)
 
     composeRule.setContent { AssetDetailScreen(viewModel = viewModel, onNavigateToSettings = {}) }
     waitForContentDescription("a1.jpg")
@@ -243,7 +239,7 @@ class AssetDetailScreenTest {
       ImmichResult.Success(TimelinePage(items = listOf(asset("a1"), asset("a2")), nextPage = null))
     }
     server.enqueue(MockResponse().setBody(assetJson())) // exif-enrichment GET for the found asset
-    val viewModel = AssetDetailViewModel(repository, settingsPrimed(), "a1", fetch)
+    val viewModel = AssetDetailViewModel(repository, "a1", fetch)
 
     composeRule.setContent { AssetDetailScreen(viewModel = viewModel, onNavigateToSettings = {}) }
     waitForContentDescription("a1.jpg")

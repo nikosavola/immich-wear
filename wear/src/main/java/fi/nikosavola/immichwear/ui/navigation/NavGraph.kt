@@ -1,6 +1,7 @@
 package fi.nikosavola.immichwear.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -22,13 +23,12 @@ import fi.nikosavola.immichwear.ui.albums.AlbumsViewModel
 import fi.nikosavola.immichwear.ui.detail.AssetDetailScreen
 import fi.nikosavola.immichwear.ui.detail.AssetDetailViewModel
 import fi.nikosavola.immichwear.ui.favorites.FavoritesScreen
-import fi.nikosavola.immichwear.ui.favorites.FavoritesViewModel
 import fi.nikosavola.immichwear.ui.home.HomeScreen
 import fi.nikosavola.immichwear.ui.home.HomeViewModel
 import fi.nikosavola.immichwear.ui.settings.SettingsScreen
 import fi.nikosavola.immichwear.ui.settings.SettingsViewModel
+import fi.nikosavola.immichwear.ui.timeline.PagedAssetsViewModel
 import fi.nikosavola.immichwear.ui.timeline.TimelineScreen
-import fi.nikosavola.immichwear.ui.timeline.TimelineViewModel
 
 private const val SOURCE_ARG = "source"
 private const val ASSET_ID_ARG = "assetId"
@@ -71,14 +71,14 @@ fun ImmichNavHost(
 }
 
 @Composable
+private inline fun <reified VM : ViewModel> immichViewModel(crossinline create: () -> VM): VM =
+  viewModel(factory = viewModelFactory { initializer { create() } })
+
+@Composable
 private fun HomeDestination(appContainer: AppContainer, navController: NavHostController) {
-  val viewModel: HomeViewModel =
-    viewModel(
-      factory =
-        viewModelFactory {
-          initializer { HomeViewModel(appContainer.settingsStore, appContainer.repository) }
-        }
-    )
+  val viewModel = immichViewModel {
+    HomeViewModel(appContainer.settingsStore, appContainer.repository)
+  }
   HomeScreen(
     viewModel = viewModel,
     onNavigateToTimeline = { navController.navigate(ImmichRoutes.TIMELINE) },
@@ -93,39 +93,22 @@ private fun HomeDestination(appContainer: AppContainer, navController: NavHostCo
 
 @Composable
 private fun SettingsDestination(appContainer: AppContainer) {
-  val viewModel: SettingsViewModel =
-    viewModel(
-      factory =
-        viewModelFactory {
-          initializer {
-            SettingsViewModel(
-              repository = appContainer.repository,
-              settingsStore = appContainer.settingsStore,
-              onSignedOut = {
-                appContainer.imageLoader.memoryCache?.clear()
-                appContainer.imageLoader.diskCache?.clear()
-              },
-            )
-          }
-        }
+  val viewModel = immichViewModel {
+    SettingsViewModel(
+      repository = appContainer.repository,
+      settingsStore = appContainer.settingsStore,
+      onSignedOut = {
+        appContainer.imageLoader.memoryCache?.clear()
+        appContainer.imageLoader.diskCache?.clear()
+      },
     )
+  }
   SettingsScreen(viewModel = viewModel)
 }
 
 @Composable
 private fun TimelineDestination(appContainer: AppContainer, navController: NavHostController) {
-  val viewModel: TimelineViewModel =
-    viewModel(
-      factory =
-        viewModelFactory {
-          initializer {
-            TimelineViewModel(
-              repository = appContainer.repository,
-              settingsPrimed = appContainer.settingsPrimed,
-            )
-          }
-        }
-    )
+  val viewModel = immichViewModel { PagedAssetsViewModel(appContainer.repository::timeline) }
   TimelineScreen(
     viewModel = viewModel,
     onAssetClick = { assetId ->
@@ -137,18 +120,7 @@ private fun TimelineDestination(appContainer: AppContainer, navController: NavHo
 
 @Composable
 private fun FavoritesDestination(appContainer: AppContainer, navController: NavHostController) {
-  val viewModel: FavoritesViewModel =
-    viewModel(
-      factory =
-        viewModelFactory {
-          initializer {
-            FavoritesViewModel(
-              repository = appContainer.repository,
-              settingsPrimed = appContainer.settingsPrimed,
-            )
-          }
-        }
-    )
+  val viewModel = immichViewModel { PagedAssetsViewModel(appContainer.repository::favorites) }
   FavoritesScreen(
     viewModel = viewModel,
     onAssetClick = { assetId ->
@@ -165,20 +137,13 @@ private fun AssetDetailDestination(
   source: String,
   assetId: String,
 ) {
-  val viewModel: AssetDetailViewModel =
-    viewModel(
-      factory =
-        viewModelFactory {
-          initializer {
-            AssetDetailViewModel(
-              repository = appContainer.repository,
-              settingsPrimed = appContainer.settingsPrimed,
-              assetId = assetId,
-              fetchPage = fetchPageFor(source, appContainer.repository),
-            )
-          }
-        }
+  val viewModel = immichViewModel {
+    AssetDetailViewModel(
+      repository = appContainer.repository,
+      assetId = assetId,
+      fetchPage = fetchPageFor(source, appContainer.repository),
     )
+  }
   AssetDetailScreen(
     viewModel = viewModel,
     onNavigateToSettings = { navController.navigate(ImmichRoutes.SETTINGS) },
@@ -219,18 +184,7 @@ private suspend fun memoriesAsPage(repository: ImmichRepository): ImmichResult<T
 
 @Composable
 private fun AlbumsDestination(appContainer: AppContainer, navController: NavHostController) {
-  val viewModel: AlbumsViewModel =
-    viewModel(
-      factory =
-        viewModelFactory {
-          initializer {
-            AlbumsViewModel(
-              repository = appContainer.repository,
-              settingsPrimed = appContainer.settingsPrimed,
-            )
-          }
-        }
-    )
+  val viewModel = immichViewModel { AlbumsViewModel(appContainer.repository) }
   AlbumsScreen(
     viewModel = viewModel,
     onAlbumClick = { albumId -> navController.navigate(ImmichRoutes.albumDetail(albumId)) },
@@ -244,19 +198,7 @@ private fun AlbumDetailDestination(
   navController: NavHostController,
   albumId: String,
 ) {
-  val viewModel: AlbumDetailViewModel =
-    viewModel(
-      factory =
-        viewModelFactory {
-          initializer {
-            AlbumDetailViewModel(
-              repository = appContainer.repository,
-              settingsPrimed = appContainer.settingsPrimed,
-              albumId = albumId,
-            )
-          }
-        }
-    )
+  val viewModel = immichViewModel { AlbumDetailViewModel(appContainer.repository, albumId) }
   AlbumDetailScreen(
     viewModel = viewModel,
     onAssetClick = { assetId ->

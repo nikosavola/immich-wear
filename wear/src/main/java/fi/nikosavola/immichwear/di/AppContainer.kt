@@ -11,12 +11,10 @@ import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import fi.nikosavola.immichwear.data.AndroidKeystoreApiKeyCipher
 import fi.nikosavola.immichwear.data.ApiKeyCipher
 import fi.nikosavola.immichwear.data.ImmichRepository
-import fi.nikosavola.immichwear.data.Settings
 import fi.nikosavola.immichwear.data.SettingsStore
 import fi.nikosavola.immichwear.data.api.createImmichClients
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
@@ -58,7 +56,17 @@ class AppContainer(
       serverBaseUrl = settingsStore.serverUrlSupplier,
     )
 
-  val repository: ImmichRepository = ImmichRepository(clients.api, settingsStore)
+  // SettingsStore's apiKeySupplier/serverUrlSupplier read in-memory mirrors that start null until
+  // something reads `settings`. A cold start could otherwise send the first request with no
+  // x-api-key header and against the unreachable placeholder host. ImmichRepository awaits this
+  // once, up front, before its first settings-dependent call, removing the ordering dependency on
+  // which screen/ViewModel happens to run first.
+  val repository: ImmichRepository =
+    ImmichRepository(
+      clients.api,
+      settingsStore,
+      settingsPrimed = applicationScope.async { settingsStore.currentSettings() },
+    )
 
   // Shares clients.okHttpClient (api-key header + dynamic base URL rewrite) with every thumbnail
   // request, so a Coil AsyncImage(model = thumbnailUrl(id, size)) call is authenticated for free
@@ -67,12 +75,4 @@ class AppContainer(
     ImageLoader.Builder(context)
       .components { add(OkHttpNetworkFetcherFactory(callFactory = { clients.okHttpClient })) }
       .build()
-
-  // SettingsStore's apiKeySupplier/serverUrlSupplier read in-memory mirrors that start null until
-  // something reads `settings`. A cold start could otherwise send the first request with no
-  // x-api-key header and against the unreachable placeholder host. Priming here, once, up front
-  // removes the ordering dependency on which screen/ViewModel happens to run first.
-  val settingsPrimed: Deferred<Settings> = applicationScope.async {
-    settingsStore.currentSettings()
-  }
 }

@@ -10,11 +10,12 @@ import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
 import fi.nikosavola.immichwear.R
+import fi.nikosavola.immichwear.ui.timeline.PagedAssetsViewModel
 import fi.nikosavola.immichwear.ui.timeline.assetGridItems
 
 @Composable
 fun FavoritesScreen(
-  viewModel: FavoritesViewModel,
+  viewModel: PagedAssetsViewModel,
   onAssetClick: (assetId: String) -> Unit,
   onNavigateToSettings: () -> Unit,
 ) {
