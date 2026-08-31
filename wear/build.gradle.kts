@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
   alias(libs.plugins.android.application)
   // kotlin.android removed: AGP 9 built-in Kotlin (version pinned in the root buildscript
@@ -5,6 +7,18 @@ plugins {
   alias(libs.plugins.compose.compiler)
   alias(libs.plugins.kotlin.serialization)
 }
+
+// Real secrets come from keystore.properties (gitignored) or RELEASE_STORE_* env vars (CI); see
+// keystore.properties.example. Shared verbatim with :mobile/build.gradle.kts so a real release
+// build signs both apps with the same key - required for the Wear OS Data Layer to route
+// messages between them at all, and for Play Store to accept them as a matching phone/watch pair.
+val keystoreProps =
+  Properties().apply {
+    val propsFile = rootProject.file("keystore.properties")
+    if (propsFile.exists()) propsFile.inputStream().use { load(it) }
+  }
+
+fun keystoreProp(key: String): String? = keystoreProps.getProperty(key) ?: System.getenv(key)
 
 android {
   namespace = "fi.nikosavola.immichwear"
@@ -33,11 +47,31 @@ android {
   }
   defaultConfig { buildConfigField("boolean", "SUPPORTS_DIRECT_WATCH_LOGIN", "true") }
 
+  signingConfigs {
+    create("release") {
+      val storeFilePath = keystoreProp("RELEASE_STORE_FILE")
+      if (storeFilePath != null) {
+        storeFile = rootProject.file(storeFilePath)
+        storePassword = keystoreProp("RELEASE_STORE_PASSWORD")
+        keyAlias = keystoreProp("RELEASE_KEY_ALIAS")
+        keyPassword = keystoreProp("RELEASE_KEY_PASSWORD")
+      }
+    }
+  }
+
   buildTypes {
     release {
       isMinifyEnabled = true
       isShrinkResources = true
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+      // Falls back to debug signing so assembleRelease still works without keystore.properties -
+      // replace with a real key before uploading to Play. See the comment above.
+      signingConfig =
+        if (keystoreProp("RELEASE_STORE_FILE") != null) {
+          signingConfigs.getByName("release")
+        } else {
+          signingConfigs.getByName("debug")
+        }
     }
   }
   compileOptions {
