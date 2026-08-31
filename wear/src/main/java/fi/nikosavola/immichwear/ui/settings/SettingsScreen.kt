@@ -1,6 +1,7 @@
 package fi.nikosavola.immichwear.ui.settings
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,15 +25,21 @@ import androidx.compose.ui.semantics.password
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.FilledTonalButton
+import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
 import fi.nikosavola.immichwear.R
 import fi.nikosavola.immichwear.ui.errorMessage
+
+private val FIELD_GROUP_SPACING = 16.dp
+private val FIELD_HORIZONTAL_PADDING = 8.dp
 
 @Composable
 fun SettingsScreen(viewModel: SettingsViewModel) {
@@ -49,9 +56,9 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
     Column(
       modifier = Modifier.fillMaxSize().verticalScroll(scrollState).padding(contentPadding),
       horizontalAlignment = Alignment.CenterHorizontally,
-      verticalArrangement = Arrangement.Center,
+      verticalArrangement = Arrangement.spacedBy(FIELD_GROUP_SPACING, Alignment.CenterVertically),
     ) {
-      Text(text = stringResource(R.string.settings_title))
+      ListHeader { Text(text = stringResource(R.string.settings_title)) }
       when (val state = uiState) {
         is SettingsUiState.Loading -> {
           Text(text = stringResource(R.string.loading))
@@ -79,11 +86,25 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
 
 @Composable
 private fun SignedInContent(state: SettingsUiState.SignedIn, onSignOut: () -> Unit) {
-  val email = state.email
-  if (email != null && email.isNotBlank()) {
-    Text(text = stringResource(R.string.settings_signed_in_account, email))
+  Column(
+    horizontalAlignment = Alignment.CenterHorizontally,
+    verticalArrangement = Arrangement.spacedBy(4.dp),
+  ) {
+    val email = state.email
+    if (email != null && email.isNotBlank()) {
+      Text(
+        text = stringResource(R.string.settings_signed_in_account, email),
+        style = MaterialTheme.typography.titleMedium,
+        textAlign = TextAlign.Center,
+      )
+    }
+    Text(
+      text = state.serverUrl,
+      style = MaterialTheme.typography.bodySmall,
+      color = MaterialTheme.colorScheme.onSurfaceVariant,
+      textAlign = TextAlign.Center,
+    )
   }
-  Text(text = state.serverUrl)
   Button(onClick = onSignOut, modifier = Modifier.fillMaxWidth()) {
     Text(text = stringResource(R.string.settings_sign_out_button))
   }
@@ -100,67 +121,60 @@ private fun SignedOutContent(
 ) {
   val clipboardManager = LocalClipboardManager.current
 
-  state.error?.let { error -> Text(text = errorMessage(error)) }
+  state.error?.let { error ->
+    Text(
+      text = errorMessage(error),
+      style = MaterialTheme.typography.bodySmall,
+      color = MaterialTheme.colorScheme.error,
+      textAlign = TextAlign.Center,
+      modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+    )
+  }
 
-  Text(text = stringResource(R.string.settings_server_url_label))
-  // BasicTextField, not a material3 text field: a watch gets the system IME, and Wear OS 3+
-  // additionally offers phone remote input automatically. Unstyled BasicTextField draws no
-  // boundary and defaults to black text, invisible on the dark Wear theme, so both are supplied
-  // explicitly.
-  BasicTextField(
+  LabeledSettingsField(
+    label = stringResource(R.string.settings_server_url_label),
     value = serverUrlInput,
     onValueChange = onServerUrlInputChange,
-    modifier =
-      Modifier.fillMaxWidth()
-        .padding(horizontal = 8.dp)
-        .background(MaterialTheme.colorScheme.surfaceContainer, MaterialTheme.shapes.small)
-        .padding(8.dp),
-    singleLine = true,
-    textStyle =
-      MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
-    cursorBrush = SolidColor(MaterialTheme.colorScheme.onSurface),
-    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+    keyboardType = KeyboardType.Uri,
   )
 
-  Text(text = stringResource(R.string.settings_api_key_label))
-  // visualTransformation masks the key on screen (and in screenshots/recordings) the same way a
-  // password field would; the clipboard-paste flow below is the primary input path, so there is
-  // no "show" toggle to verify what was typed.
-  BasicTextField(
+  LabeledSettingsField(
+    label = stringResource(R.string.settings_api_key_label),
     value = apiKeyInput,
     onValueChange = onApiKeyInputChange,
-    modifier =
-      Modifier.fillMaxWidth()
-        .padding(horizontal = 8.dp)
-        .background(MaterialTheme.colorScheme.surfaceContainer, MaterialTheme.shapes.small)
-        .padding(8.dp)
-        .semantics { password() },
-    singleLine = true,
-    textStyle =
-      MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
-    cursorBrush = SolidColor(MaterialTheme.colorScheme.onSurface),
-    visualTransformation = PasswordVisualTransformation(),
-    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+    keyboardType = KeyboardType.Password,
+    isPassword = true,
   )
 
-  // A watch's Wireless debugging pairing already implies a paired phone, and Wear OS syncs the
-  // system clipboard between them, so pasting a key/URL copied on the phone works without any
-  // Data Layer code. Long-press-to-paste on BasicTextField is not reliably discoverable on a
-  // small round screen, so this button reads the clipboard directly as a visible alternative.
-  Text(text = stringResource(R.string.settings_clipboard_hint))
-  FilledTonalButton(
-    onClick = {
-      clipboardManager.getText()?.let { pasted ->
-        if (serverUrlInput.isBlank()) {
-          onServerUrlInputChange(pasted.text)
-        } else {
-          onApiKeyInputChange(pasted.text)
-        }
-      }
-    },
-    modifier = Modifier.fillMaxWidth(),
+  Column(
+    horizontalAlignment = Alignment.CenterHorizontally,
+    verticalArrangement = Arrangement.spacedBy(8.dp),
   ) {
-    Text(text = stringResource(R.string.settings_paste_button))
+    // A watch's Wireless debugging pairing already implies a paired phone, and Wear OS syncs the
+    // system clipboard between them, so pasting a key/URL copied on the phone works without any
+    // Data Layer code. Long-press-to-paste on BasicTextField is not reliably discoverable on a
+    // small round screen, so this button reads the clipboard directly as a visible alternative.
+    Text(
+      text = stringResource(R.string.settings_clipboard_hint),
+      style = MaterialTheme.typography.bodyExtraSmall,
+      color = MaterialTheme.colorScheme.onSurfaceVariant,
+      textAlign = TextAlign.Center,
+      modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+    )
+    FilledTonalButton(
+      onClick = {
+        clipboardManager.getText()?.let { pasted ->
+          if (serverUrlInput.isBlank()) {
+            onServerUrlInputChange(pasted.text)
+          } else {
+            onApiKeyInputChange(pasted.text)
+          }
+        }
+      },
+      modifier = Modifier.fillMaxWidth(),
+    ) {
+      Text(text = stringResource(R.string.settings_paste_button))
+    }
   }
   Button(
     onClick = { onConnect(serverUrlInput, apiKeyInput) },
@@ -168,5 +182,50 @@ private fun SignedOutContent(
     enabled = serverUrlInput.isNotBlank() && apiKeyInput.isNotBlank(),
   ) {
     Text(text = stringResource(R.string.settings_connect_button))
+  }
+}
+
+// A label above a bordered, tonal-filled BasicTextField - not a material3 text field: a watch
+// gets the system IME, and Wear OS 3+ additionally offers phone remote input automatically.
+// Unstyled BasicTextField draws no boundary and defaults to black text, invisible on the dark
+// Wear theme, so both the fill/border and text color are supplied explicitly. The outline mirrors
+// Material 3's outlined-text-field convention so this reads as an input, not a static label.
+@Composable
+private fun LabeledSettingsField(
+  label: String,
+  value: String,
+  onValueChange: (String) -> Unit,
+  keyboardType: KeyboardType,
+  isPassword: Boolean = false,
+) {
+  Column(
+    modifier = Modifier.fillMaxWidth().padding(horizontal = FIELD_HORIZONTAL_PADDING),
+    verticalArrangement = Arrangement.spacedBy(4.dp),
+  ) {
+    Text(
+      text = label,
+      style = MaterialTheme.typography.labelMedium,
+      color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    var fieldModifier =
+      Modifier.fillMaxWidth()
+        .background(MaterialTheme.colorScheme.surfaceContainerHigh, MaterialTheme.shapes.small)
+        .border(1.dp, MaterialTheme.colorScheme.outline, MaterialTheme.shapes.small)
+        .padding(horizontal = 12.dp, vertical = 10.dp)
+    if (isPassword) {
+      fieldModifier = fieldModifier.semantics { password() }
+    }
+    BasicTextField(
+      value = value,
+      onValueChange = onValueChange,
+      modifier = fieldModifier,
+      singleLine = true,
+      textStyle =
+        MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
+      cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+      visualTransformation =
+        if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
+      keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+    )
   }
 }
