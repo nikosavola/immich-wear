@@ -118,7 +118,7 @@ class SettingsScreenTest {
   }
 
   @Test
-  fun `connecting successfully shows the signed-in account email`() {
+  fun `connecting successfully briefly shows a success confirmation, then the signed-in screen`() {
     server.enqueue(MockResponse().setBody("""{"id": "u1", "email": "$EMAIL"}"""))
     val viewModel = SettingsViewModel(repository, settingsStore)
     composeRule.setContent { SettingsScreen(viewModel = viewModel) }
@@ -127,11 +127,12 @@ class SettingsScreenTest {
     typeServerUrlAndApiKey(server.url("/").toString(), API_KEY)
     composeRule.onNodeWithText(string(R.string.settings_connect_button)).performClick()
 
+    waitForText(string(R.string.settings_connect_success))
     waitForText(string(R.string.settings_signed_in_account, EMAIL))
   }
 
   @Test
-  fun `a rejected connect attempt shows an error without clearing the typed fields`() {
+  fun `a rejected connect attempt briefly shows a failure confirmation, then the error`() {
     server.enqueue(MockResponse().setResponseCode(401))
     val viewModel = SettingsViewModel(repository, settingsStore)
     composeRule.setContent { SettingsScreen(viewModel = viewModel) }
@@ -141,6 +142,7 @@ class SettingsScreenTest {
     typeServerUrlAndApiKey(serverUrl, "wrong-key")
     composeRule.onNodeWithText(string(R.string.settings_connect_button)).performClick()
 
+    waitForText(string(R.string.settings_connect_failed))
     waitForText(string(R.string.error_unauthorized))
     // The regression this guards: fields used to be wiped by the Connecting -> SignedOut(error)
     // transition, forcing a full retype after every rejected attempt.
@@ -148,7 +150,7 @@ class SettingsScreenTest {
   }
 
   @Test
-  fun `signed-in screen signs out back to the connect form`() {
+  fun `signing out requires a confirmation before it takes effect`() {
     runBlocking {
       settingsStore.setServerUrl(server.url("/").toString())
       settingsStore.setApiKey(API_KEY)
@@ -159,7 +161,29 @@ class SettingsScreenTest {
     waitForText(string(R.string.settings_signed_in_account, EMAIL))
 
     composeRule.onNodeWithText(string(R.string.settings_sign_out_button)).performClick()
+    waitForText(string(R.string.settings_sign_out_confirm_message))
+
+    composeRule.onNodeWithText(string(R.string.settings_sign_out_button)).performClick()
 
     waitForText(string(R.string.settings_server_url_label))
+  }
+
+  @Test
+  fun `cancelling the sign-out confirmation stays signed in`() {
+    runBlocking {
+      settingsStore.setServerUrl(server.url("/").toString())
+      settingsStore.setApiKey(API_KEY)
+      settingsStore.setEmail(EMAIL)
+    }
+    val viewModel = SettingsViewModel(repository, settingsStore)
+    composeRule.setContent { SettingsScreen(viewModel = viewModel) }
+    waitForText(string(R.string.settings_signed_in_account, EMAIL))
+
+    composeRule.onNodeWithText(string(R.string.settings_sign_out_button)).performClick()
+    waitForText(string(R.string.settings_sign_out_confirm_message))
+
+    composeRule.onNodeWithText(string(R.string.cancel_button)).performClick()
+
+    waitForText(string(R.string.settings_signed_in_account, EMAIL))
   }
 }

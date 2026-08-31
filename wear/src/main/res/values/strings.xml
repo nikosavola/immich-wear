@@ -4,6 +4,7 @@
     <string name="loading">Loading&#8230;</string>
     <string name="retry_button">Retry</string>
     <string name="go_to_settings_button">Go to Settings</string>
+    <string name="cancel_button">Cancel</string>
 
     <string name="settings_title">Settings</string>
     <string name="settings_server_url_label">Server URL</string>
@@ -13,7 +14,10 @@
     <string name="settings_connect_button">Connect</string>
     <string name="settings_connecting">Connecting&#8230;</string>
     <string name="settings_sign_out_button">Sign out</string>
+    <string name="settings_sign_out_confirm_message">Sign out of Immich?</string>
     <string name="settings_signed_in_account">Signed in as %1$s</string>
+    <string name="settings_connect_success">Connected</string>
+    <string name="settings_connect_failed">Couldn\'t connect</string>
 
     <string name="home_not_connected">Connect to your Immich server to get started.</string>
 

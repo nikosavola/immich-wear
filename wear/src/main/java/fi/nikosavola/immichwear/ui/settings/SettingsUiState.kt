@@ -10,5 +10,8 @@ sealed interface SettingsUiState {
 
   data object Connecting : SettingsUiState
 
+  /** Transient: shown briefly after a connect attempt resolves, then replaced automatically. */
+  data class ConnectResult(val success: Boolean) : SettingsUiState
+
   data class SignedIn(val email: String?, val serverUrl: String) : SettingsUiState
 }

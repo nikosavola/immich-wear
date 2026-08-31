@@ -6,10 +6,15 @@ import fi.nikosavola.immichwear.data.ImmichRepository
 import fi.nikosavola.immichwear.data.ImmichResult
 import fi.nikosavola.immichwear.data.SettingsStore
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+
+// How long the transient "Connected"/"Couldn't connect" confirmation stays up before the screen
+// moves on by itself - long enough to register as feedback, short enough not to feel stuck.
+private const val CONNECT_RESULT_DISPLAY_MS = 900L
 
 class SettingsViewModel(
   private val repository: ImmichRepository,
@@ -32,9 +37,16 @@ class SettingsViewModel(
   fun connect(serverUrl: String, apiKey: String): Job = viewModelScope.launch {
     mutableUiState.value = SettingsUiState.Connecting
     when (val result = repository.connect(serverUrl, apiKey)) {
-      is ImmichResult.Success -> refresh()
-      is ImmichResult.Failure ->
+      is ImmichResult.Success -> {
+        mutableUiState.value = SettingsUiState.ConnectResult(success = true)
+        delay(CONNECT_RESULT_DISPLAY_MS)
+        refresh()
+      }
+      is ImmichResult.Failure -> {
+        mutableUiState.value = SettingsUiState.ConnectResult(success = false)
+        delay(CONNECT_RESULT_DISPLAY_MS)
         mutableUiState.value = SettingsUiState.SignedOut(error = result.error)
+      }
     }
   }
 

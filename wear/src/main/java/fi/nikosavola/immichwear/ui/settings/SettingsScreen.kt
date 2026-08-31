@@ -30,6 +30,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.wear.compose.material3.Button
+import androidx.wear.compose.material3.ButtonDefaults
 import androidx.wear.compose.material3.FilledTonalButton
 import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.MaterialTheme
@@ -66,6 +67,9 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
         is SettingsUiState.Connecting -> {
           Text(text = stringResource(R.string.settings_connecting))
         }
+        is SettingsUiState.ConnectResult -> {
+          ConnectResultContent(success = state.success)
+        }
         is SettingsUiState.SignedIn -> {
           SignedInContent(state = state, onSignOut = viewModel::signOut)
         }
@@ -86,6 +90,8 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
 
 @Composable
 private fun SignedInContent(state: SettingsUiState.SignedIn, onSignOut: () -> Unit) {
+  var confirmingSignOut by remember { mutableStateOf(false) }
+
   Column(
     horizontalAlignment = Alignment.CenterHorizontally,
     verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -105,8 +111,58 @@ private fun SignedInContent(state: SettingsUiState.SignedIn, onSignOut: () -> Un
       textAlign = TextAlign.Center,
     )
   }
-  Button(onClick = onSignOut, modifier = Modifier.fillMaxWidth()) {
-    Text(text = stringResource(R.string.settings_sign_out_button))
+  if (confirmingSignOut) {
+    Text(
+      text = stringResource(R.string.settings_sign_out_confirm_message),
+      style = MaterialTheme.typography.bodyMedium,
+      color = MaterialTheme.colorScheme.onSurfaceVariant,
+      textAlign = TextAlign.Center,
+      modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+    )
+    FilledTonalButton(onClick = { confirmingSignOut = false }, modifier = Modifier.fillMaxWidth()) {
+      Text(text = stringResource(R.string.cancel_button))
+    }
+    Button(
+      onClick = onSignOut,
+      modifier = Modifier.fillMaxWidth(),
+      colors =
+        ButtonDefaults.buttonColors(
+          containerColor = MaterialTheme.colorScheme.errorContainer,
+          contentColor = MaterialTheme.colorScheme.onErrorContainer,
+        ),
+    ) {
+      Text(text = stringResource(R.string.settings_sign_out_button))
+    }
+  } else {
+    Button(onClick = { confirmingSignOut = true }, modifier = Modifier.fillMaxWidth()) {
+      Text(text = stringResource(R.string.settings_sign_out_button))
+    }
+  }
+}
+
+// A brief, wordless-ish confirmation after Connect resolves, before the screen moves on by itself
+// (see SettingsViewModel.CONNECT_RESULT_DISPLAY_MS) - Wear OS's own system dialogs use the same
+// glyph-in-a-circle pattern for a transient success/failure moment.
+@Composable
+private fun ConnectResultContent(success: Boolean) {
+  Column(
+    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+    horizontalAlignment = Alignment.CenterHorizontally,
+    verticalArrangement = Arrangement.spacedBy(8.dp),
+  ) {
+    Text(
+      text = if (success) "✓" else "✕",
+      style = MaterialTheme.typography.displayLarge,
+      color = if (success) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+    )
+    Text(
+      text =
+        stringResource(
+          if (success) R.string.settings_connect_success else R.string.settings_connect_failed
+        ),
+      style = MaterialTheme.typography.titleMedium,
+      textAlign = TextAlign.Center,
+    )
   }
 }
 
