@@ -38,9 +38,10 @@ private const val ALBUM_ID_ARG = "albumId"
 fun ImmichNavHost(
   appContainer: AppContainer,
   navController: NavHostController = rememberSwipeDismissableNavController(),
+  startDestination: String = ImmichRoutes.HOME,
 ) {
   AppScaffold {
-    SwipeDismissableNavHost(navController = navController, startDestination = ImmichRoutes.HOME) {
+    SwipeDismissableNavHost(navController = navController, startDestination = startDestination) {
       composable(ImmichRoutes.HOME) { HomeDestination(appContainer, navController) }
       composable(ImmichRoutes.SETTINGS) { SettingsDestination(appContainer) }
       composable(ImmichRoutes.TIMELINE) { TimelineDestination(appContainer, navController) }

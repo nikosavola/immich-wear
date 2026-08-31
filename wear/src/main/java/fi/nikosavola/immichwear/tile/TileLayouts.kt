@@ -8,6 +8,7 @@ import androidx.wear.protolayout.LayoutElementBuilders
 import androidx.wear.protolayout.ModifiersBuilders
 import androidx.wear.protolayout.ResourceBuilders
 import fi.nikosavola.immichwear.ui.MainActivity
+import fi.nikosavola.immichwear.ui.navigation.ImmichRoutes
 import java.nio.ByteBuffer
 
 private const val OPEN_APP_CLICKABLE_ID = "open_immich"
@@ -48,27 +49,43 @@ fun photoLayout(context: Context, resourceId: String): LayoutElementBuilders.Lay
     )
     .build()
 
-fun messageLayout(context: Context, message: String): LayoutElementBuilders.LayoutElement =
+// startDestination, when non-null, opens straight to that NavHost route instead of Home - used to
+// send the signed-out tile's tap directly to Settings rather than making the user tap through Home
+// first.
+fun messageLayout(
+  context: Context,
+  message: String,
+  startDestination: String? = null,
+): LayoutElementBuilders.LayoutElement =
   LayoutElementBuilders.Box.Builder()
     .setWidth(DimensionBuilders.expand())
     .setHeight(DimensionBuilders.expand())
     .setModifiers(
-      ModifiersBuilders.Modifiers.Builder().setClickable(openAppClickable(context)).build()
+      ModifiersBuilders.Modifiers.Builder()
+        .setClickable(openAppClickable(context, startDestination))
+        .build()
     )
     .addContent(LayoutElementBuilders.Text.Builder().setText(message).build())
     .build()
 
-private fun openAppClickable(context: Context): ModifiersBuilders.Clickable =
-  ModifiersBuilders.Clickable.Builder()
+private fun openAppClickable(
+  context: Context,
+  startDestination: String? = null,
+): ModifiersBuilders.Clickable {
+  val activityBuilder =
+    ActionBuilders.AndroidActivity.Builder()
+      .setPackageName(context.packageName)
+      .setClassName(MainActivity::class.java.name)
+  if (startDestination != null) {
+    activityBuilder.addKeyToExtraMapping(
+      ImmichRoutes.EXTRA_START_DESTINATION,
+      ActionBuilders.AndroidStringExtra.Builder().setValue(startDestination).build(),
+    )
+  }
+  return ModifiersBuilders.Clickable.Builder()
     .setId(OPEN_APP_CLICKABLE_ID)
     .setOnClick(
-      ActionBuilders.LaunchAction.Builder()
-        .setAndroidActivity(
-          ActionBuilders.AndroidActivity.Builder()
-            .setPackageName(context.packageName)
-            .setClassName(MainActivity::class.java.name)
-            .build()
-        )
-        .build()
+      ActionBuilders.LaunchAction.Builder().setAndroidActivity(activityBuilder.build()).build()
     )
     .build()
+}

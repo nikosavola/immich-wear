@@ -6,6 +6,10 @@ package fi.nikosavola.immichwear.ui.navigation
 object ImmichRoutes {
   const val HOME = "home"
   const val SETTINGS = "settings"
+
+  // Intent extra key MainActivity reads to override its NavHost start destination - used by the
+  // tile's signed-out state to open straight to Settings instead of Home. See TileLayouts.kt.
+  const val EXTRA_START_DESTINATION = "start_destination"
   const val TIMELINE = "timeline"
   const val FAVORITES = "favorites"
   const val ALBUMS = "albums"

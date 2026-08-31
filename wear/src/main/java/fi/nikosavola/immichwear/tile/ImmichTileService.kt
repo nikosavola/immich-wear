@@ -19,6 +19,7 @@ import fi.nikosavola.immichwear.data.api.AssetThumbnailSize
 import fi.nikosavola.immichwear.data.api.dto.AssetDto
 import fi.nikosavola.immichwear.data.api.thumbnailUrl
 import fi.nikosavola.immichwear.di.AppContainer
+import fi.nikosavola.immichwear.ui.navigation.ImmichRoutes
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
@@ -118,7 +119,11 @@ class ImmichTileService : TileService() {
     val rootLayout =
       if (settings.serverUrl == null || settings.apiKey == null) {
         pendingPhoto = null
-        messageLayout(this, getString(R.string.home_not_connected))
+        messageLayout(
+          this,
+          getString(R.string.home_not_connected),
+          startDestination = ImmichRoutes.SETTINGS,
+        )
       } else {
         val asset = pickRandomAsset(appContainer)
         val bitmap = asset?.let { fetchThumbnail(appContainer, it) }
