@@ -20,6 +20,11 @@
     <string name="settings_connect_failed">Couldn\'t connect</string>
 
     <string name="home_not_connected">Connect to your Immich server to get started.</string>
+    <string name="home_memory_title">Memories</string>
+    <plurals name="home_memory_years_ago">
+        <item quantity="one">%d year ago</item>
+        <item quantity="other">%d years ago</item>
+    </plurals>
 
     <string name="timeline_title">Recent photos</string>
     <string name="timeline_empty">No photos yet.</string>

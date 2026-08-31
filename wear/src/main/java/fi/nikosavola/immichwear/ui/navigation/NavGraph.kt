@@ -84,6 +84,9 @@ private fun HomeDestination(appContainer: AppContainer, navController: NavHostCo
     onNavigateToAlbums = { navController.navigate(ImmichRoutes.ALBUMS) },
     onNavigateToFavorites = { navController.navigate(ImmichRoutes.FAVORITES) },
     onNavigateToSettings = { navController.navigate(ImmichRoutes.SETTINGS) },
+    onMemoryClick = { assetId ->
+      navController.navigate(ImmichRoutes.assetDetailFromMemory(assetId))
+    },
   )
 }
 
@@ -191,12 +194,27 @@ private fun fetchPageFor(
   val albumId = ImmichRoutes.albumIdFromSource(source)
   return when {
     source == ImmichRoutes.SOURCE_FAVORITES -> repository::favorites
+    source == ImmichRoutes.SOURCE_MEMORY -> { _ ->
+      memoriesAsPage(repository)
+    }
     albumId != null -> { page ->
       repository.albumAssets(albumId, page)
     }
     else -> repository::timeline
   }
 }
+
+// Memories aren't paginated - the server returns the whole day's set in one response - so this
+// flattens every matching year's assets into a single non-paginated TimelinePage for sibling
+// paging, same shape AssetDetailViewModel expects from every other source.
+private suspend fun memoriesAsPage(repository: ImmichRepository): ImmichResult<TimelinePage> =
+  when (val result = repository.memories()) {
+    is ImmichResult.Success ->
+      ImmichResult.Success(
+        TimelinePage(items = result.value.flatMap { it.assets }, nextPage = null)
+      )
+    is ImmichResult.Failure -> result
+  }
 
 @Composable
 private fun AlbumsDestination(appContainer: AppContainer, navController: NavHostController) {

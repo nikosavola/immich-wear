@@ -3,11 +3,13 @@ package fi.nikosavola.immichwear.data
 import fi.nikosavola.immichwear.data.api.ImmichApi
 import fi.nikosavola.immichwear.data.api.dto.AlbumDto
 import fi.nikosavola.immichwear.data.api.dto.AssetDto
+import fi.nikosavola.immichwear.data.api.dto.MemoryDto
 import fi.nikosavola.immichwear.data.api.dto.MetadataSearchRequest
 import fi.nikosavola.immichwear.data.api.dto.SearchAssetResponse
 import fi.nikosavola.immichwear.data.api.dto.UpdateAssetRequest
 import fi.nikosavola.immichwear.data.api.dto.UserDto
 import java.io.IOException
+import java.time.LocalDate
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
@@ -146,6 +148,16 @@ class ImmichRepository(private val api: ImmichApi, private val settingsStore: Se
             .assets
             .toTimelinePage()
         }
+    }
+
+  /**
+   * Today's "on this day" memories - one entry per past year with a match, each carrying its own
+   * assets. Not paginated: the server returns the whole day's set in one response.
+   */
+  suspend fun memories(): ImmichResult<List<MemoryDto>> =
+    when (val configured = requireConfigured()) {
+      is ImmichResult.Failure -> configured
+      is ImmichResult.Success -> runCatchingImmich { api.getMemories(LocalDate.now().toString()) }
     }
 
   /** Fetches full metadata for one asset, including its current favorite state. */

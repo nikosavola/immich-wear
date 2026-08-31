@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.wear.compose.foundation.lazy.TransformingLazyColumn
@@ -32,6 +33,7 @@ fun HomeScreen(
   onNavigateToAlbums: () -> Unit,
   onNavigateToFavorites: () -> Unit,
   onNavigateToSettings: () -> Unit,
+  onMemoryClick: (assetId: String) -> Unit,
 ) {
   val uiState by viewModel.uiState.collectAsStateWithLifecycle()
   val listState = rememberTransformingLazyColumnState()
@@ -60,10 +62,12 @@ fun HomeScreen(
           connectedHomeItems(
             transformationSpec = transformationSpec,
             heroAssetId = state.heroAssetId,
+            memory = state.memory,
             onNavigateToTimeline = onNavigateToTimeline,
             onNavigateToAlbums = onNavigateToAlbums,
             onNavigateToFavorites = onNavigateToFavorites,
             onNavigateToSettings = onNavigateToSettings,
+            onMemoryClick = onMemoryClick,
           )
         }
       }
@@ -74,11 +78,16 @@ fun HomeScreen(
 private fun TransformingLazyColumnScope.connectedHomeItems(
   transformationSpec: TransformationSpec,
   heroAssetId: String?,
+  memory: HomeMemoryPreview?,
   onNavigateToTimeline: () -> Unit,
   onNavigateToAlbums: () -> Unit,
   onNavigateToFavorites: () -> Unit,
   onNavigateToSettings: () -> Unit,
+  onMemoryClick: (assetId: String) -> Unit,
 ) {
+  if (memory != null) {
+    memoryCardItem(transformationSpec, memory, onMemoryClick)
+  }
   item {
     if (heroAssetId != null) {
       TitleCard(
@@ -128,5 +137,31 @@ private fun TransformingLazyColumnScope.connectedHomeItems(
     ) {
       Text(text = stringResource(R.string.settings_title))
     }
+  }
+}
+
+private fun TransformingLazyColumnScope.memoryCardItem(
+  transformationSpec: TransformationSpec,
+  memory: HomeMemoryPreview,
+  onMemoryClick: (assetId: String) -> Unit,
+) {
+  item {
+    TitleCard(
+      onClick = { onMemoryClick(memory.assetId) },
+      containerPainter =
+        rememberAsyncImagePainter(
+          model = thumbnailUrl(memory.assetId, AssetThumbnailSize.THUMBNAIL),
+          contentScale = ContentScale.Crop,
+        ),
+      title = { Text(text = stringResource(R.string.home_memory_title)) },
+      subtitle = {
+        Text(
+          text =
+            pluralStringResource(R.plurals.home_memory_years_ago, memory.yearsAgo, memory.yearsAgo)
+        )
+      },
+      modifier = Modifier.fillMaxWidth().transformedHeight(this, transformationSpec),
+      transformation = SurfaceTransformation(transformationSpec),
+    )
   }
 }

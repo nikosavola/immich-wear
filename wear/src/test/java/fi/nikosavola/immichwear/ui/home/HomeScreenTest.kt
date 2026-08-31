@@ -5,6 +5,7 @@ import androidx.annotation.StringRes
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
@@ -33,6 +34,7 @@ import org.robolectric.annotation.GraphicsMode
 private const val WAIT_TIMEOUT_MS = 5_000L
 private const val MARKER = "nav-marker"
 private const val NO_ASSETS_RESPONSE = """{"assets": {"items": [], "nextPage": null}}"""
+private const val NO_MEMORIES_RESPONSE = "[]"
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -90,6 +92,7 @@ class HomeScreenTest {
         onNavigateToAlbums = {},
         onNavigateToFavorites = {},
         onNavigateToSettings = { navigatedToSettings = true },
+        onMemoryClick = {},
       )
       if (navigatedToSettings) Text(text = MARKER)
     }
@@ -108,6 +111,7 @@ class HomeScreenTest {
       settingsStore.setApiKey("key")
     }
     server.enqueue(MockResponse().setBody(NO_ASSETS_RESPONSE)) // hero-photo fetch, empty library
+    server.enqueue(MockResponse().setBody(NO_MEMORIES_RESPONSE)) // memories fetch, none today
     val viewModel = HomeViewModel(settingsStore, repository)
     var navigatedTo by mutableStateOf<String?>(null)
 
@@ -118,6 +122,7 @@ class HomeScreenTest {
         onNavigateToAlbums = { navigatedTo = "albums" },
         onNavigateToFavorites = { navigatedTo = "favorites" },
         onNavigateToSettings = { navigatedTo = "settings" },
+        onMemoryClick = {},
       )
       if (navigatedTo != null) Text(text = MARKER)
     }
@@ -136,6 +141,7 @@ class HomeScreenTest {
       settingsStore.setApiKey("key")
     }
     server.enqueue(MockResponse().setBody(NO_ASSETS_RESPONSE)) // hero-photo fetch, empty library
+    server.enqueue(MockResponse().setBody(NO_MEMORIES_RESPONSE)) // memories fetch, none today
     val viewModel = HomeViewModel(settingsStore, repository)
     var navigatedTo by mutableStateOf<String?>(null)
 
@@ -146,6 +152,7 @@ class HomeScreenTest {
         onNavigateToAlbums = { navigatedTo = "albums" },
         onNavigateToFavorites = { navigatedTo = "favorites" },
         onNavigateToSettings = { navigatedTo = "settings" },
+        onMemoryClick = {},
       )
       if (navigatedTo != null) Text(text = MARKER)
     }
@@ -171,6 +178,7 @@ class HomeScreenTest {
             """ "localDateTime": "2026-01-01T00:00:00Z"}], "nextPage": null}}"""
         )
     )
+    server.enqueue(MockResponse().setBody(NO_MEMORIES_RESPONSE)) // memories fetch, none today
     val viewModel = HomeViewModel(settingsStore, repository)
     var navigatedTo by mutableStateOf<String?>(null)
 
@@ -181,6 +189,7 @@ class HomeScreenTest {
         onNavigateToAlbums = { navigatedTo = "albums" },
         onNavigateToFavorites = { navigatedTo = "favorites" },
         onNavigateToSettings = { navigatedTo = "settings" },
+        onMemoryClick = { navigatedTo = "memory" },
       )
       if (navigatedTo != null) Text(text = MARKER)
     }
@@ -190,5 +199,67 @@ class HomeScreenTest {
 
     waitForText(MARKER)
     assertTrue(navigatedTo == "timeline")
+  }
+
+  @Test
+  fun `connected with a memory today shows a Memories card that navigates`() {
+    runBlocking {
+      settingsStore.setServerUrl(server.url("/").toString())
+      settingsStore.setApiKey("key")
+    }
+    server.enqueue(MockResponse().setBody(NO_ASSETS_RESPONSE)) // hero-photo fetch, empty library
+    server.enqueue(
+      MockResponse()
+        .setBody(
+          """[{"data": {"year": 2020}, "assets": [{"id": "m1", "type": "IMAGE",""" +
+            """ "originalFileName": "m1.jpg", "isFavorite": false,""" +
+            """ "localDateTime": "2020-01-01T00:00:00Z"}]}]"""
+        )
+    )
+    val viewModel = HomeViewModel(settingsStore, repository)
+    var navigatedTo by mutableStateOf<String?>(null)
+
+    composeRule.setContent {
+      HomeScreen(
+        viewModel = viewModel,
+        onNavigateToTimeline = { navigatedTo = "timeline" },
+        onNavigateToAlbums = { navigatedTo = "albums" },
+        onNavigateToFavorites = { navigatedTo = "favorites" },
+        onNavigateToSettings = { navigatedTo = "settings" },
+        onMemoryClick = { navigatedTo = "memory" },
+      )
+      if (navigatedTo != null) Text(text = MARKER)
+    }
+    waitForText(string(R.string.home_memory_title))
+
+    composeRule.onNodeWithText(string(R.string.home_memory_title)).performClick()
+
+    waitForText(MARKER)
+    assertTrue(navigatedTo == "memory")
+  }
+
+  @Test
+  fun `connected with no memory today shows no Memories card`() {
+    runBlocking {
+      settingsStore.setServerUrl(server.url("/").toString())
+      settingsStore.setApiKey("key")
+    }
+    server.enqueue(MockResponse().setBody(NO_ASSETS_RESPONSE)) // hero-photo fetch, empty library
+    server.enqueue(MockResponse().setBody(NO_MEMORIES_RESPONSE)) // memories fetch, none today
+    val viewModel = HomeViewModel(settingsStore, repository)
+
+    composeRule.setContent {
+      HomeScreen(
+        viewModel = viewModel,
+        onNavigateToTimeline = {},
+        onNavigateToAlbums = {},
+        onNavigateToFavorites = {},
+        onNavigateToSettings = {},
+        onMemoryClick = {},
+      )
+    }
+    waitForText(string(R.string.timeline_title))
+
+    composeRule.onAllNodesWithText(string(R.string.home_memory_title)).assertCountEquals(0)
   }
 }

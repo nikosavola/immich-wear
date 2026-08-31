@@ -2,6 +2,7 @@ package fi.nikosavola.immichwear.data.api
 
 import fi.nikosavola.immichwear.data.api.dto.AlbumDto
 import fi.nikosavola.immichwear.data.api.dto.AssetDto
+import fi.nikosavola.immichwear.data.api.dto.MemoryDto
 import fi.nikosavola.immichwear.data.api.dto.MetadataSearchRequest
 import fi.nikosavola.immichwear.data.api.dto.SearchMetadataResponse
 import fi.nikosavola.immichwear.data.api.dto.ServerPingResponse
@@ -12,6 +13,7 @@ import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 interface ImmichApi {
   @GET("api/server/ping") suspend fun ping(): ServerPingResponse
@@ -24,6 +26,10 @@ interface ImmichApi {
   suspend fun searchMetadata(@Body request: MetadataSearchRequest): SearchMetadataResponse
 
   @GET("api/albums") suspend fun getAlbums(): List<AlbumDto>
+
+  // `for` takes a plain yyyy-MM-dd date (server matches month/day across every past year), not a
+  // full timestamp.
+  @GET("api/memories") suspend fun getMemories(@Query("for") forDate: String): List<MemoryDto>
 
   // Album contents are not returned inline by this endpoint on the current server version;
   // ImmichRepository.albumAssets() fetches them via searchMetadata(albumIds = [id]) instead.

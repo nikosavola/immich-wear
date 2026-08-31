@@ -69,6 +69,8 @@ class EndToEndFlowTest {
                     """ "originalFileName": "asset-1.jpg", "isFavorite": false,""" +
                     """ "localDateTime": "2026-01-01T00:00:00Z"}], "nextPage": null}}"""
                 )
+            request.path?.startsWith("/api/memories") == true ->
+              MockResponse().setBody("[]") // Home's memories fetch, none today
             request.path == "/api/assets/asset-1" ->
               MockResponse()
                 .setBody(

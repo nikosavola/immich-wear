@@ -291,4 +291,37 @@ class ImmichRepositoryTest {
     assertEquals("/api/search/metadata", recorded.path)
     assertEquals("""{"size":30,"order":"desc","isFavorite":true}""", recorded.body.readUtf8())
   }
+
+  @Test
+  fun `memories fails with NotConfigured before a server is connected`() = runTest {
+    val result = repository.memories()
+
+    assertEquals(ImmichResult.Failure(ImmichError.NotConfigured), result)
+    assertEquals(0, server.requestCount)
+  }
+
+  @Test
+  fun `memories queries by today's date and parses each year's assets`() = runTest {
+    server.enqueue(MockResponse().setBody("""{"id": "u1", "email": "$EMAIL"}"""))
+    repository.connect(server.url("/").toString(), API_KEY)
+    server.takeRequest()
+    server.enqueue(
+      MockResponse()
+        .setBody(
+          """[{"data": {"year": 2019}, "assets": [{"id": "a1", "type": "IMAGE",""" +
+            """ "originalFileName": "a1.jpg", "localDateTime": "2019-01-01T00:00:00Z"}]}]"""
+        )
+    )
+
+    val result = repository.memories()
+
+    assertTrue(result is ImmichResult.Success)
+    val memories = (result as ImmichResult.Success).value
+    assertEquals(1, memories.size)
+    assertEquals(2019, memories[0].data.year)
+    assertEquals("a1", memories[0].assets[0].id)
+    val recorded = server.takeRequest()
+    assertEquals("/api/memories", recorded.requestUrl?.encodedPath)
+    assertEquals(java.time.LocalDate.now().toString(), recorded.requestUrl?.queryParameter("for"))
+  }
 }
