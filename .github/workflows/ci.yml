@@ -56,13 +56,18 @@ jobs:
       # See the comment in the verify job: assembleDebug/testDebugUnitTest also configure AGP,
       # which needs compileSdk 36 resolvable. testDebugUnitTest covers everything: plain JVM unit
       # tests, per-screen Robolectric Compose tests, and the end-to-end flow test - none of them
-      # need an emulator.
+      # need an emulator. assemblePlaystoreDebug also builds here so a compile break confined to
+      # that flavor's BuildConfig-gated branch can't slip through unnoticed; its full unit test
+      # suite isn't run because most Settings screen tests assume "direct"'s on-watch login UI.
       - name: Set up Android SDK
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4
         with:
           packages: 'platforms;android-36 build-tools;36.0.0'
       - name: Build and Run Unit Tests
-        run: ./gradlew :wear:assembleDebug :wear:testDebugUnitTest --no-daemon
+        run: |
+          ./gradlew :wear:assembleDirectDebug :wear:assemblePlaystoreDebug \
+            :wear:testDirectDebugUnitTest \
+            :mobile:assembleDebug :mobile:testDebugUnitTest --no-daemon
       - name: Upload Test Reports on Failure
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7

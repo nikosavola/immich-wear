@@ -18,6 +18,21 @@ android {
     versionName = "0.1.0"
   }
 
+  // "direct" keeps on-watch server URL/API key entry (Settings) for anyone building/sideloading
+  // from source. "playstore" strips it via BuildConfig.SUPPORTS_DIRECT_WATCH_LOGIN, satisfying
+  // the Play Store Wear OS quality guideline against typing credentials on a watch - login there
+  // is companion-app-only. Neither flavor gets an applicationIdSuffix: whichever one ships must
+  // keep the exact applicationId the :mobile app expects (see PhoneLoginContract.kt).
+  flavorDimensions += "distribution"
+  productFlavors {
+    create("direct") { dimension = "distribution" }
+    create("playstore") {
+      dimension = "distribution"
+      buildConfigField("boolean", "SUPPORTS_DIRECT_WATCH_LOGIN", "false")
+    }
+  }
+  defaultConfig { buildConfigField("boolean", "SUPPORTS_DIRECT_WATCH_LOGIN", "true") }
+
   buildTypes {
     release {
       isMinifyEnabled = true
@@ -29,7 +44,10 @@ android {
     sourceCompatibility = JavaVersion.VERSION_21
     targetCompatibility = JavaVersion.VERSION_21
   }
-  buildFeatures { compose = true }
+  buildFeatures {
+    compose = true
+    buildConfig = true
+  }
 
   // Robolectric needs merged manifest/resource info to resolve the app context it fakes.
   testOptions { unitTests { isIncludeAndroidResources = true } }

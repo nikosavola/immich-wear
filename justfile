@@ -6,7 +6,9 @@
 
 max_workers := env('JUST_MAX_WORKERS', '2')
 sdk := env('ANDROID_HOME', env('ANDROID_SDK_ROOT', env('HOME') + '/Android/Sdk'))
-apk := 'wear/build/outputs/apk/debug/wear-debug.apk'
+# "direct" is the sideload-friendly flavor (keeps on-watch login) - what every local
+# install/launch/test recipe here targets. "playstore" strips that; see wear/build.gradle.kts.
+apk := 'wear/build/outputs/apk/direct/debug/wear-direct-debug.apk'
 gradle := './gradlew --max-workers=' + max_workers
 package := 'fi.nikosavola.immichwear'
 
@@ -27,7 +29,7 @@ lint:
 # Build the debug APK
 [group('build')]
 assemble:
-    {{ gradle }} :wear:assembleDebug
+    {{ gradle }} :wear:assembleDirectDebug
 
 # Remove build outputs
 [group('build')]
@@ -37,12 +39,12 @@ clean:
 # Run the host-JVM unit tests
 [group('test')]
 test:
-    {{ gradle }} :wear:testDebugUnitTest
+    {{ gradle }} :wear:testDirectDebugUnitTest
 
 # Full local gate: lint, build and test, with --no-daemon to match CI exactly
 [group('test')]
 verify:
-    {{ gradle }} lintAll :wear:assembleDebug :wear:testDebugUnitTest --no-daemon
+    {{ gradle }} lintAll :wear:assembleDirectDebug :wear:testDirectDebugUnitTest --no-daemon
 
 # List connected adb devices, including wireless ones
 [group('device')]

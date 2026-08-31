@@ -69,6 +69,9 @@ tasks.register("formatAll") {
     ":wear:ktfmtFormatScripts",
     ":wear:ktfmtFormatKotlin",
     ":wear:ktlintFormat",
+    ":mobile:ktfmtFormatScripts",
+    ":mobile:ktfmtFormatKotlin",
+    ":mobile:ktlintFormat",
   )
 }
 
@@ -82,7 +85,14 @@ tasks.register("lintAll") {
     ":wear:ktfmtCheckKotlin",
     ":wear:ktlintCheck",
     ":wear:detekt",
-    ":wear:lintDebug",
+    // "direct" only, matching the default flavor everything else here targets - see justfile.
+    ":wear:lintDirectDebug",
+    ":mobile:ktfmtCheckScripts",
+    ":mobile:ktfmtSourcesNotEmpty",
+    ":mobile:ktfmtCheckKotlin",
+    ":mobile:ktlintCheck",
+    ":mobile:detekt",
+    ":mobile:lintDebug",
   )
 }
 
