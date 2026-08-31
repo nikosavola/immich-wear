@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Immich Wear Login</string>
+
+    <string name="login_title">Connect your watch</string>
+    <string name="login_subtitle">Send your Immich server details straight to your watch - no typing on a tiny screen required.</string>
+    <string name="login_server_url_label">Server URL</string>
+    <string name="login_api_key_label">API key</string>
+    <string name="login_send_button">Send to watch</string>
+    <string name="login_sending">Sending to watch…</string>
+    <string name="login_success">Your watch is connected.</string>
+    <string name="login_stats">%1$d assets on your server · %2$d photos · %3$d videos</string>
+    <string name="login_failure">Your watch couldn\'t connect: %1$s</string>
+    <string name="login_no_watch_found">No paired watch with Immich Wear was found. Make sure it\'s installed and your watch is connected.</string>
+    <string name="login_send_failed">Couldn\'t reach the watch. Check that it\'s nearby and connected.</string>
+</resources>

@@ -26,3 +26,5 @@ dependencyResolutionManagement {
 rootProject.name = "ImmichWearOS"
 
 include(":wear")
+
+include(":mobile")

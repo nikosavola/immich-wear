@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Launcher icon background. Light so the watch case reads against the black Wear OS launcher. -->
+    <color name="ic_launcher_background">#FFF5F3EF</color>
+</resources>
