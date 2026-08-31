@@ -44,6 +44,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.wear.compose.material3.EdgeButton
+import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.SwipeToDismissBox
 import androidx.wear.compose.material3.Text
@@ -85,16 +86,20 @@ fun AssetDetailScreen(viewModel: AssetDetailViewModel, onNavigateToSettings: () 
     Box(modifier = Modifier.fillMaxSize()) {
       when (val state = uiState) {
         is AssetDetailUiState.Loading -> {
-          Text(text = stringResource(R.string.loading), modifier = Modifier.align(Alignment.Center))
+          Text(
+            text = stringResource(R.string.loading),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.align(Alignment.Center),
+          )
         }
         is AssetDetailUiState.Error -> {
-          Column(modifier = Modifier.align(Alignment.Center)) {
-            ErrorContent(
-              error = state.error,
-              onRetry = viewModel::load,
-              onGoToSettings = onNavigateToSettings,
-            )
-          }
+          ErrorContent(
+            error = state.error,
+            onRetry = viewModel::load,
+            onGoToSettings = onNavigateToSettings,
+            modifier = Modifier.align(Alignment.Center),
+          )
         }
         is AssetDetailUiState.Loaded -> {
           AssetDetailContent(

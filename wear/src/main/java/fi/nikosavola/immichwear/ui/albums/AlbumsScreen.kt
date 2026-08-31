@@ -1,17 +1,21 @@
 package fi.nikosavola.immichwear.ui.albums
 
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.wear.compose.foundation.lazy.TransformingLazyColumn
 import androidx.wear.compose.foundation.lazy.items
 import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
 import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.ListHeader
+import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.SurfaceTransformation
 import androidx.wear.compose.material3.Text
@@ -36,7 +40,7 @@ fun AlbumsScreen(
       item { ListHeader { Text(text = stringResource(R.string.albums_title)) } }
       when (val state = uiState) {
         is AlbumsUiState.Loading -> {
-          item { Text(text = stringResource(R.string.loading)) }
+          item { AlbumsMessage(text = stringResource(R.string.loading)) }
         }
         is AlbumsUiState.Error -> {
           item {
@@ -49,7 +53,7 @@ fun AlbumsScreen(
         }
         is AlbumsUiState.Loaded -> {
           if (state.albums.isEmpty()) {
-            item { Text(text = stringResource(R.string.albums_empty)) }
+            item { AlbumsMessage(text = stringResource(R.string.albums_empty)) }
           } else {
             items(items = state.albums, key = AlbumDto::id) { album ->
               AlbumRow(
@@ -64,6 +68,17 @@ fun AlbumsScreen(
       }
     }
   }
+}
+
+@Composable
+private fun AlbumsMessage(text: String) {
+  Text(
+    text = text,
+    style = MaterialTheme.typography.bodyMedium,
+    color = MaterialTheme.colorScheme.onSurfaceVariant,
+    textAlign = TextAlign.Center,
+    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+  )
 }
 
 @Composable

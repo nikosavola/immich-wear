@@ -5,13 +5,16 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.foundation.lazy.TransformingLazyColumnScope
 import androidx.wear.compose.foundation.lazy.items
 import androidx.wear.compose.material3.Button
+import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.Text
 import fi.nikosavola.immichwear.R
 import fi.nikosavola.immichwear.data.api.dto.AssetDto
@@ -38,7 +41,7 @@ fun TransformingLazyColumnScope.assetGridItems(
 ) {
   when (uiState) {
     is TimelineUiState.Loading -> {
-      item { Text(text = stringResource(R.string.loading)) }
+      item { GridMessage(text = stringResource(R.string.loading)) }
     }
     is TimelineUiState.Error -> {
       item {
@@ -47,14 +50,18 @@ fun TransformingLazyColumnScope.assetGridItems(
     }
     is TimelineUiState.Loaded -> {
       if (uiState.items.isEmpty()) {
-        item { Text(text = stringResource(emptyMessageRes)) }
+        item { GridMessage(text = stringResource(emptyMessageRes)) }
       } else {
         items(items = uiState.items.chunked(GRID_COLUMNS), key = { row -> row.first().id }) { row ->
           AssetRow(row = row, onAssetClick = onAssetClick, modifier = Modifier.fillMaxWidth())
         }
         if (uiState.nextPage != null) {
           item {
-            Button(onClick = onLoadMore, enabled = !uiState.isLoadingMore) {
+            Button(
+              onClick = onLoadMore,
+              modifier = Modifier.fillMaxWidth(),
+              enabled = !uiState.isLoadingMore,
+            ) {
               Text(
                 text =
                   stringResource(
@@ -71,6 +78,17 @@ fun TransformingLazyColumnScope.assetGridItems(
       }
     }
   }
+}
+
+@Composable
+private fun GridMessage(text: String) {
+  Text(
+    text = text,
+    style = MaterialTheme.typography.bodyMedium,
+    color = MaterialTheme.colorScheme.onSurfaceVariant,
+    textAlign = TextAlign.Center,
+    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+  )
 }
 
 @Composable
