@@ -63,6 +63,12 @@ dependencies {
 
   implementation(libs.androidx.datastore.preferences)
 
+  // PhoneLoginListenerService: receives server URL/API key from the :mobile companion app over
+  // the Wear OS Data Layer. See ../mobile/build.gradle.kts for why the two apps must share this
+  // applicationId.
+  implementation(libs.play.services.wearable)
+  implementation(libs.kotlinx.coroutines.play.services)
+
   testImplementation(libs.junit)
   testImplementation(libs.okhttp.mockwebserver)
   testImplementation(libs.kotlinx.coroutines.test)

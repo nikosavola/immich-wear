@@ -3,6 +3,7 @@ package fi.nikosavola.immichwear.data
 import fi.nikosavola.immichwear.data.api.ImmichApi
 import fi.nikosavola.immichwear.data.api.dto.AlbumDto
 import fi.nikosavola.immichwear.data.api.dto.AssetDto
+import fi.nikosavola.immichwear.data.api.dto.AssetStatsResponseDto
 import fi.nikosavola.immichwear.data.api.dto.MemoryDto
 import fi.nikosavola.immichwear.data.api.dto.MetadataSearchRequest
 import fi.nikosavola.immichwear.data.api.dto.SearchAssetResponse
@@ -158,6 +159,13 @@ class ImmichRepository(private val api: ImmichApi, private val settingsStore: Se
     when (val configured = requireConfigured()) {
       is ImmichResult.Failure -> configured
       is ImmichResult.Success -> runCatchingImmich { api.getMemories(LocalDate.now().toString()) }
+    }
+
+  /** Library-wide photo/video counts, e.g. for the companion phone app's post-login summary. */
+  suspend fun assetStatistics(): ImmichResult<AssetStatsResponseDto> =
+    when (val configured = requireConfigured()) {
+      is ImmichResult.Failure -> configured
+      is ImmichResult.Success -> runCatchingImmich { api.getAssetStatistics() }
     }
 
   /** Fetches full metadata for one asset, including its current favorite state. */

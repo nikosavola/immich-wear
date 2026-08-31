@@ -293,6 +293,31 @@ class ImmichRepositoryTest {
   }
 
   @Test
+  fun `assetStatistics fails with NotConfigured before a server is connected`() = runTest {
+    val result = repository.assetStatistics()
+
+    assertEquals(ImmichResult.Failure(ImmichError.NotConfigured), result)
+    assertEquals(0, server.requestCount)
+  }
+
+  @Test
+  fun `assetStatistics parses the photo and video counts`() = runTest {
+    server.enqueue(MockResponse().setBody("""{"id": "u1", "email": "$EMAIL"}"""))
+    repository.connect(server.url("/").toString(), API_KEY)
+    server.takeRequest()
+    server.enqueue(MockResponse().setBody("""{"total": 42, "images": 30, "videos": 12}"""))
+
+    val result = repository.assetStatistics()
+
+    assertTrue(result is ImmichResult.Success)
+    val stats = (result as ImmichResult.Success).value
+    assertEquals(42, stats.total)
+    assertEquals(30, stats.images)
+    assertEquals(12, stats.videos)
+    assertEquals("/api/assets/statistics", server.takeRequest().path)
+  }
+
+  @Test
   fun `memories fails with NotConfigured before a server is connected`() = runTest {
     val result = repository.memories()
 

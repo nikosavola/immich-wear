@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Advertised so the :mobile companion app can find this watch via CapabilityClient without
+         guessing node ids - see PhoneLoginListenerService. -->
+    <string-array name="android_wear_capabilities">
+        <item>immich_wear_login</item>
+    </string-array>
+</resources>

@@ -29,6 +29,14 @@ style:
   # ktfmt is the sole formatting authority, including multiline raw-string indentation.
   MultilineRawStringIndentation:
     active: false
+complexity:
+  active: true
+  # ImmichRepository is one function per Immich API operation - a flat, cohesive facade, not a
+  # class doing too many unrelated things. Raised past the default (11) to give it room to grow
+  # the same way, rather than splitting a repository that doesn't actually have a cohesion problem.
+  TooManyFunctions:
+    active: true
+    allowedFunctionsPerClass: 20
 exceptions:
   active: true
   # ImmichRepository/SettingsStore/ApiKeyCipher deliberately map these to a fixed ImmichError or to
@@ -38,6 +46,7 @@ exceptions:
   SwallowedException:
     active: true
     ignoredExceptionTypes:
+      - 'ApiException'
       - 'GeneralSecurityException'
       - 'HttpException'
       - 'IOException'

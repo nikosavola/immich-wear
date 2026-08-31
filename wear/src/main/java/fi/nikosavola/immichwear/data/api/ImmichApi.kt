@@ -2,6 +2,7 @@ package fi.nikosavola.immichwear.data.api
 
 import fi.nikosavola.immichwear.data.api.dto.AlbumDto
 import fi.nikosavola.immichwear.data.api.dto.AssetDto
+import fi.nikosavola.immichwear.data.api.dto.AssetStatsResponseDto
 import fi.nikosavola.immichwear.data.api.dto.MemoryDto
 import fi.nikosavola.immichwear.data.api.dto.MetadataSearchRequest
 import fi.nikosavola.immichwear.data.api.dto.SearchMetadataResponse
@@ -26,6 +27,8 @@ interface ImmichApi {
   suspend fun searchMetadata(@Body request: MetadataSearchRequest): SearchMetadataResponse
 
   @GET("api/albums") suspend fun getAlbums(): List<AlbumDto>
+
+  @GET("api/assets/statistics") suspend fun getAssetStatistics(): AssetStatsResponseDto
 
   // `for` takes a plain yyyy-MM-dd date (server matches month/day across every past year), not a
   // full timestamp.

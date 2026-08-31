@@ -1,5 +1,6 @@
 package fi.nikosavola.immichwear.ui
 
+import android.content.Context
 import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
@@ -32,4 +33,16 @@ fun errorMessage(error: ImmichError): String =
     stringResource(errorMessageRes(error), error.code)
   } else {
     stringResource(errorMessageRes(error))
+  }
+
+/**
+ * Non-Composable twin of [errorMessage], for callers with a plain [Context] instead of a
+ * composition - e.g. [fi.nikosavola.immichwear.datalayer.PhoneLoginHandler], which runs from a
+ * background service replying to the phone companion app.
+ */
+fun errorMessage(context: Context, error: ImmichError): String =
+  if (error is ImmichError.Http) {
+    context.getString(errorMessageRes(error), error.code)
+  } else {
+    context.getString(errorMessageRes(error))
   }
