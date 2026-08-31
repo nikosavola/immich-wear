@@ -9,8 +9,8 @@
     <string name="settings_title">Settings</string>
     <string name="settings_server_url_label">Server URL</string>
     <string name="settings_api_key_label">API key</string>
-    <string name="settings_clipboard_hint">Tip: copy on your phone, then tap Paste. Your phone\'s clipboard syncs to this watch.</string>
-    <string name="settings_paste_button">Paste</string>
+    <string name="settings_companion_app_hint">Tip: install the Immich Wear companion app on your phone for easier setup, or enter your details below.</string>
+    <string name="settings_companion_app_required">Install the Immich Wear companion app on your phone to sign in.</string>
     <string name="settings_connect_button">Connect</string>
     <string name="settings_connecting">Connecting&#8230;</string>
     <string name="settings_sign_out_button">Sign out</string>

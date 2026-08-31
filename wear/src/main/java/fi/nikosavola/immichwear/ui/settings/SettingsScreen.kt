@@ -3,9 +3,11 @@ package fi.nikosavola.immichwear.ui.settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
@@ -19,7 +21,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.password
 import androidx.compose.ui.semantics.semantics
@@ -36,8 +37,16 @@ import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
+import fi.nikosavola.immichwear.BuildConfig
 import fi.nikosavola.immichwear.R
 import fi.nikosavola.immichwear.ui.errorMessage
+
+// Wear OS Play Store quality guidelines direct against typing credentials on a watch; the
+// "playstore" build flavor turns this off (see wear/build.gradle.kts), leaving the companion app
+// as the only sign-in path, while "direct" (sideload/personal builds) keeps it available.
+private const val SUPPORTS_DIRECT_WATCH_LOGIN = BuildConfig.SUPPORTS_DIRECT_WATCH_LOGIN
+
+private val MIN_TOUCH_TARGET = 48.dp
 
 private val FIELD_GROUP_SPACING = 16.dp
 private val FIELD_HORIZONTAL_PADDING = 8.dp
@@ -175,8 +184,6 @@ private fun SignedOutContent(
   onApiKeyInputChange: (String) -> Unit,
   onConnect: (serverUrl: String, apiKey: String) -> Unit,
 ) {
-  val clipboardManager = LocalClipboardManager.current
-
   state.error?.let { error ->
     Text(
       text = errorMessage(error),
@@ -187,57 +194,45 @@ private fun SignedOutContent(
     )
   }
 
-  LabeledSettingsField(
-    label = stringResource(R.string.settings_server_url_label),
-    value = serverUrlInput,
-    onValueChange = onServerUrlInputChange,
-    keyboardType = KeyboardType.Uri,
-  )
-
-  LabeledSettingsField(
-    label = stringResource(R.string.settings_api_key_label),
-    value = apiKeyInput,
-    onValueChange = onApiKeyInputChange,
-    keyboardType = KeyboardType.Password,
-    isPassword = true,
-  )
-
-  Column(
-    horizontalAlignment = Alignment.CenterHorizontally,
-    verticalArrangement = Arrangement.spacedBy(8.dp),
-  ) {
-    // A watch's Wireless debugging pairing already implies a paired phone, and Wear OS syncs the
-    // system clipboard between them, so pasting a key/URL copied on the phone works without any
-    // Data Layer code. Long-press-to-paste on BasicTextField is not reliably discoverable on a
-    // small round screen, so this button reads the clipboard directly as a visible alternative.
-    Text(
-      text = stringResource(R.string.settings_clipboard_hint),
-      style = MaterialTheme.typography.bodyExtraSmall,
-      color = MaterialTheme.colorScheme.onSurfaceVariant,
-      textAlign = TextAlign.Center,
-      modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-    )
-    FilledTonalButton(
-      onClick = {
-        clipboardManager.getText()?.let { pasted ->
-          if (serverUrlInput.isBlank()) {
-            onServerUrlInputChange(pasted.text)
-          } else {
-            onApiKeyInputChange(pasted.text)
-          }
+  Text(
+    text =
+      stringResource(
+        if (SUPPORTS_DIRECT_WATCH_LOGIN) {
+          R.string.settings_companion_app_hint
+        } else {
+          R.string.settings_companion_app_required
         }
-      },
+      ),
+    style = MaterialTheme.typography.bodySmall,
+    color = MaterialTheme.colorScheme.onSurfaceVariant,
+    textAlign = TextAlign.Center,
+    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+  )
+
+  // The fields below only exist in the "direct" build flavor - see SUPPORTS_DIRECT_WATCH_LOGIN.
+  if (SUPPORTS_DIRECT_WATCH_LOGIN) {
+    LabeledSettingsField(
+      label = stringResource(R.string.settings_server_url_label),
+      value = serverUrlInput,
+      onValueChange = onServerUrlInputChange,
+      keyboardType = KeyboardType.Uri,
+    )
+
+    LabeledSettingsField(
+      label = stringResource(R.string.settings_api_key_label),
+      value = apiKeyInput,
+      onValueChange = onApiKeyInputChange,
+      keyboardType = KeyboardType.Password,
+      isPassword = true,
+    )
+
+    Button(
+      onClick = { onConnect(serverUrlInput, apiKeyInput) },
       modifier = Modifier.fillMaxWidth(),
+      enabled = serverUrlInput.isNotBlank() && apiKeyInput.isNotBlank(),
     ) {
-      Text(text = stringResource(R.string.settings_paste_button))
+      Text(text = stringResource(R.string.settings_connect_button))
     }
-  }
-  Button(
-    onClick = { onConnect(serverUrlInput, apiKeyInput) },
-    modifier = Modifier.fillMaxWidth(),
-    enabled = serverUrlInput.isNotBlank() && apiKeyInput.isNotBlank(),
-  ) {
-    Text(text = stringResource(R.string.settings_connect_button))
   }
 }
 
@@ -263,25 +258,32 @@ private fun LabeledSettingsField(
       style = MaterialTheme.typography.labelMedium,
       color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
-    var fieldModifier =
-      Modifier.fillMaxWidth()
-        .background(MaterialTheme.colorScheme.surfaceContainerHigh, MaterialTheme.shapes.small)
-        .border(1.dp, MaterialTheme.colorScheme.outline, MaterialTheme.shapes.small)
-        .padding(horizontal = 12.dp, vertical = 10.dp)
-    if (isPassword) {
-      fieldModifier = fieldModifier.semantics { password() }
+    // The outer Box (not the BasicTextField itself) owns the min-height: BasicTextField has no
+    // decorationBox here, so it top-aligns its content rather than centering it in extra height.
+    Box(
+      modifier =
+        Modifier.fillMaxWidth()
+          .heightIn(min = MIN_TOUCH_TARGET)
+          .background(MaterialTheme.colorScheme.surfaceContainerHigh, MaterialTheme.shapes.small)
+          .border(1.dp, MaterialTheme.colorScheme.outline, MaterialTheme.shapes.small),
+      contentAlignment = Alignment.CenterStart,
+    ) {
+      var fieldModifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp)
+      if (isPassword) {
+        fieldModifier = fieldModifier.semantics { password() }
+      }
+      BasicTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = fieldModifier,
+        singleLine = true,
+        textStyle =
+          MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
+        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+        visualTransformation =
+          if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+      )
     }
-    BasicTextField(
-      value = value,
-      onValueChange = onValueChange,
-      modifier = fieldModifier,
-      singleLine = true,
-      textStyle =
-        MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
-      cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-      visualTransformation =
-        if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
-      keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-    )
   }
 }
