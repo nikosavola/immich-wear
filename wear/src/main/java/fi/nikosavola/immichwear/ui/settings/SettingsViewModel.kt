@@ -10,6 +10,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 // How long the transient "Connected"/"Couldn't connect" confirmation stays up before the screen
@@ -24,15 +25,22 @@ class SettingsViewModel(
   private val mutableUiState = MutableStateFlow<SettingsUiState>(SettingsUiState.Loading)
   val uiState: StateFlow<SettingsUiState> = mutableUiState.asStateFlow()
 
+  // Reactive (not a one-shot read): the companion phone app can connect independently of this
+  // screen (PhoneLoginListenerService calls repository.connect() directly), so if the user has
+  // Settings open when that happens, it should flip to SignedIn without a manual refresh. Skipped
+  // while Connecting/ConnectResult, both of which this class already drives itself in connect()
+  // below - repository.connect() writes serverUrl/apiKey speculatively before validating them, and
+  // reacting to that mid-flight write here would race connect()'s own state transitions.
   init {
-    load()
+    viewModelScope.launch {
+      settingsStore.settings.collectLatest {
+        val current = mutableUiState.value
+        if (current !is SettingsUiState.Connecting && current !is SettingsUiState.ConnectResult) {
+          refresh()
+        }
+      }
+    }
   }
-
-  /**
-   * Returns the launched [Job] so tests can `join()` it instead of racing real DataStore/network
-   * I/O against virtual-time advancement.
-   */
-  fun load(): Job = viewModelScope.launch { refresh() }
 
   fun connect(serverUrl: String, apiKey: String): Job = viewModelScope.launch {
     mutableUiState.value = SettingsUiState.Connecting
