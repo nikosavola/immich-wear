@@ -1,6 +1,7 @@
 package fi.nikosavola.immichwear.data
 
 import fi.nikosavola.immichwear.data.api.ImmichApi
+import fi.nikosavola.immichwear.data.api.createImmichClients
 import fi.nikosavola.immichwear.data.api.dto.AlbumDto
 import fi.nikosavola.immichwear.data.api.dto.AssetDto
 import fi.nikosavola.immichwear.data.api.dto.AssetStatsResponseDto
@@ -12,8 +13,8 @@ import fi.nikosavola.immichwear.data.api.dto.UserDto
 import java.io.IOException
 import java.time.LocalDate
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Deferred
 import kotlinx.serialization.SerializationException
 import retrofit2.HttpException
 
@@ -34,14 +35,20 @@ data class TimelinePage(val items: List<AssetDto>, val nextPage: Int?)
  * (auth, offline, parse). Coroutine cancellation is the one exception: every catch block below
  * rethrows [CancellationException] before anything else, so a cancelled caller sees cancellation,
  * not a wrapped "offline" failure.
+ *
+ * [settingsPrimed] is awaited before every request that depends on settings, so a cold start can't
+ * race [api]'s synchronous credential suppliers - see [fi.nikosavola.immichwear.di.AppContainer].
+ * Defaults to an already-completed value for callers (mainly tests) that don't need to prime
+ * anything.
  */
-class ImmichRepository(private val api: ImmichApi, private val settingsStore: SettingsStore) {
+class ImmichRepository(
+  private val api: ImmichApi,
+  private val settingsStore: SettingsStore,
+  private val settingsPrimed: Deferred<Settings> = CompletableDeferred(Settings()),
+) {
   /**
-   * Normalizes and persists [serverUrlInput] and [apiKey], then validates them with `GET
-   * /users/me`. Never leaves an unvalidated or rejected server/key pair persisted - including if
-   * the caller is cancelled (e.g. the Settings screen is swipe-dismissed) while the validation
-   * request is still in flight: the rollback below runs under [NonCancellable] specifically so a
-   * cancellation can't skip it and strand invalid credentials.
+   * Validates [serverUrlInput] and [apiKey] with `GET /users/me` against a throwaway client before
+   * persisting anything, so a rejected or offline attempt never touches [settingsStore].
    */
   suspend fun connect(serverUrlInput: String, apiKey: String): ImmichResult<UserDto> {
     val normalizedUrl =
@@ -52,33 +59,14 @@ class ImmichRepository(private val api: ImmichApi, private val settingsStore: Se
     // whitespace problem.
     val trimmedApiKey = apiKey.trim()
 
-    settingsStore.setServerUrl(normalizedUrl)
-    settingsStore.setApiKey(trimmedApiKey)
-
-    val userResult =
-      try {
-        runCatchingImmich { api.getCurrentUser() }
-      } catch (e: CancellationException) {
-        withContext(NonCancellable) {
-          settingsStore.setServerUrl(null)
-          settingsStore.setApiKey(null)
-        }
-        throw e
-      }
-
-    return when (userResult) {
-      is ImmichResult.Failure -> {
-        withContext(NonCancellable) {
-          settingsStore.setServerUrl(null)
-          settingsStore.setApiKey(null)
-        }
-        userResult
-      }
-      is ImmichResult.Success -> {
-        settingsStore.setEmail(userResult.value.email)
-        userResult
-      }
+    val probe = createImmichClients(apiKey = { trimmedApiKey }, serverBaseUrl = { normalizedUrl })
+    val userResult = runCatchingImmich { probe.api.getCurrentUser() }
+    if (userResult is ImmichResult.Success) {
+      settingsStore.setServerUrl(normalizedUrl)
+      settingsStore.setApiKey(trimmedApiKey)
+      settingsStore.setEmail(userResult.value.email)
     }
+    return userResult
   }
 
   suspend fun signOut() {
@@ -89,29 +77,16 @@ class ImmichRepository(private val api: ImmichApi, private val settingsStore: Se
    * Fetches one page of the recent-photos timeline, newest first. [page] is the opaque page number
    * from a previous [TimelinePage.nextPage]; null fetches the first page.
    */
-  suspend fun timeline(page: Int? = null): ImmichResult<TimelinePage> =
-    when (val configured = requireConfigured()) {
-      is ImmichResult.Failure -> configured
-      is ImmichResult.Success ->
-        runCatchingImmich {
-          api
-            .searchMetadata(MetadataSearchRequest(size = TIMELINE_PAGE_SIZE, page = page))
-            .assets
-            .toTimelinePage()
-        }
-    }
+  suspend fun timeline(page: Int? = null): ImmichResult<TimelinePage> = configured {
+    api
+      .searchMetadata(MetadataSearchRequest(size = TIMELINE_PAGE_SIZE, page = page))
+      .assets
+      .toTimelinePage()
+  }
 
-  suspend fun albums(): ImmichResult<List<AlbumDto>> =
-    when (val configured = requireConfigured()) {
-      is ImmichResult.Failure -> configured
-      is ImmichResult.Success -> runCatchingImmich { api.getAlbums() }
-    }
+  suspend fun albums(): ImmichResult<List<AlbumDto>> = configured { api.getAlbums() }
 
-  suspend fun album(albumId: String): ImmichResult<AlbumDto> =
-    when (val configured = requireConfigured()) {
-      is ImmichResult.Failure -> configured
-      is ImmichResult.Success -> runCatchingImmich { api.getAlbum(albumId) }
-    }
+  suspend fun album(albumId: String): ImmichResult<AlbumDto> = configured { api.getAlbum(albumId) }
 
   /**
    * Fetches one page of an album's assets, newest first. The album-by-id endpoint does not return
@@ -119,76 +94,54 @@ class ImmichRepository(private val api: ImmichApi, private val settingsStore: Se
    * `albumIds`.
    */
   suspend fun albumAssets(albumId: String, page: Int? = null): ImmichResult<TimelinePage> =
-    when (val configured = requireConfigured()) {
-      is ImmichResult.Failure -> configured
-      is ImmichResult.Success ->
-        runCatchingImmich {
-          api
-            .searchMetadata(
-              MetadataSearchRequest(
-                size = TIMELINE_PAGE_SIZE,
-                albumIds = listOf(albumId),
-                page = page,
-              )
-            )
-            .assets
-            .toTimelinePage()
-        }
+    configured {
+      api
+        .searchMetadata(
+          MetadataSearchRequest(size = TIMELINE_PAGE_SIZE, albumIds = listOf(albumId), page = page)
+        )
+        .assets
+        .toTimelinePage()
     }
 
   /** Fetches one page of favorited assets, newest first. */
-  suspend fun favorites(page: Int? = null): ImmichResult<TimelinePage> =
-    when (val configured = requireConfigured()) {
-      is ImmichResult.Failure -> configured
-      is ImmichResult.Success ->
-        runCatchingImmich {
-          api
-            .searchMetadata(
-              MetadataSearchRequest(size = TIMELINE_PAGE_SIZE, isFavorite = true, page = page)
-            )
-            .assets
-            .toTimelinePage()
-        }
-    }
+  suspend fun favorites(page: Int? = null): ImmichResult<TimelinePage> = configured {
+    api
+      .searchMetadata(
+        MetadataSearchRequest(size = TIMELINE_PAGE_SIZE, isFavorite = true, page = page)
+      )
+      .assets
+      .toTimelinePage()
+  }
 
   /**
    * Today's "on this day" memories - one entry per past year with a match, each carrying its own
    * assets. Not paginated: the server returns the whole day's set in one response.
    */
-  suspend fun memories(): ImmichResult<List<MemoryDto>> =
-    when (val configured = requireConfigured()) {
-      is ImmichResult.Failure -> configured
-      is ImmichResult.Success -> runCatchingImmich { api.getMemories(LocalDate.now().toString()) }
-    }
+  suspend fun memories(): ImmichResult<List<MemoryDto>> = configured {
+    api.getMemories(LocalDate.now().toString())
+  }
 
   /** Library-wide photo/video counts, e.g. for the companion phone app's post-login summary. */
-  suspend fun assetStatistics(): ImmichResult<AssetStatsResponseDto> =
-    when (val configured = requireConfigured()) {
-      is ImmichResult.Failure -> configured
-      is ImmichResult.Success -> runCatchingImmich { api.getAssetStatistics() }
-    }
+  suspend fun assetStatistics(): ImmichResult<AssetStatsResponseDto> = configured {
+    api.getAssetStatistics()
+  }
 
   /** Fetches full metadata for one asset, including its current favorite state. */
-  suspend fun asset(assetId: String): ImmichResult<AssetDto> =
-    when (val configured = requireConfigured()) {
-      is ImmichResult.Failure -> configured
-      is ImmichResult.Success -> runCatchingImmich { api.getAssetInfo(assetId) }
-    }
+  suspend fun asset(assetId: String): ImmichResult<AssetDto> = configured {
+    api.getAssetInfo(assetId)
+  }
 
-  suspend fun setFavorite(assetId: String, isFavorite: Boolean): ImmichResult<Unit> =
-    when (val configured = requireConfigured()) {
-      is ImmichResult.Failure -> configured
-      is ImmichResult.Success ->
-        runCatchingImmich { api.updateAsset(assetId, UpdateAssetRequest(isFavorite)) }
-    }
+  suspend fun setFavorite(assetId: String, isFavorite: Boolean): ImmichResult<Unit> = configured {
+    api.updateAsset(assetId, UpdateAssetRequest(isFavorite))
+  }
 
-  private suspend fun requireConfigured(): ImmichResult<Unit> {
+  private suspend fun <T> configured(block: suspend () -> T): ImmichResult<T> {
+    settingsPrimed.await()
     val settings = settingsStore.currentSettings()
-    return if (settings.serverUrl != null && settings.apiKey != null) {
-      ImmichResult.Success(Unit)
-    } else {
-      ImmichResult.Failure(ImmichError.NotConfigured)
+    if (settings.serverUrl == null || settings.apiKey == null) {
+      return ImmichResult.Failure(ImmichError.NotConfigured)
     }
+    return runCatchingImmich(block)
   }
 }
 

@@ -102,7 +102,7 @@ class ImmichRepositoryTest {
   }
 
   @Test
-  fun `cancelling connect while validating rolls back the persisted credentials`() = runTest {
+  fun `cancelling connect while validating leaves no credentials persisted`() = runTest {
     server.enqueue(
       MockResponse()
         .setBody("""{"id": "u1", "email": "$EMAIL"}""")

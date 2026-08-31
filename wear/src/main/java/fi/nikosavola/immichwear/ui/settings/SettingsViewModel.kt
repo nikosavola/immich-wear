@@ -29,8 +29,8 @@ class SettingsViewModel(
   // screen (PhoneLoginListenerService calls repository.connect() directly), so if the user has
   // Settings open when that happens, it should flip to SignedIn without a manual refresh. Skipped
   // while Connecting/ConnectResult, both of which this class already drives itself in connect()
-  // below - repository.connect() writes serverUrl/apiKey speculatively before validating them, and
-  // reacting to that mid-flight write here would race connect()'s own state transitions.
+  // below - otherwise a successful connect()'s settings write would trigger this collector to jump
+  // straight to SignedIn, preempting the transient success/failure confirmation connect() shows.
   init {
     viewModelScope.launch {
       settingsStore.settings.collectLatest {
