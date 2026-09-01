@@ -11,6 +11,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.pinch
 import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.swipeUp
@@ -262,12 +263,12 @@ class AssetDetailScreenTest {
 
     // Two-finger pinch-out: start close together at the center, spread apart to zoom in.
     composeRule.onNodeWithContentDescription("a1.jpg").performTouchInput {
-      down(0, center - Offset(20f, 0f))
-      down(1, center + Offset(20f, 0f))
-      moveTo(0, center - Offset(150f, 0f))
-      moveTo(1, center + Offset(150f, 0f))
-      up(0)
-      up(1)
+      pinch(
+        start0 = center - Offset(20f, 0f),
+        end0 = center - Offset(150f, 0f),
+        start1 = center + Offset(20f, 0f),
+        end1 = center + Offset(150f, 0f),
+      )
     }
 
     // Now zoomed in: a single-finger swipe up should pan the photo, not advance to the next one.

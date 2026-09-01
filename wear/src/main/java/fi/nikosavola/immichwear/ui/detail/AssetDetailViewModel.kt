@@ -30,10 +30,10 @@ class AssetDetailViewModel(
   }
 
   // Fetches the caller's grid's first page to rebuild the sibling list and find assetId's
-  // position in it, so next()/previous() can page through it. The asset being opened was already
-  // visible in that grid, so it's on this first page unless the server's list changed underneath
-  // us since the grid loaded - in which case this falls back to fetching just this one asset,
-  // disabling next/previous, rather than re-querying further pages to keep searching for it.
+  // position in it, so the pager (see AssetDetailScreen) can page through it. The asset being
+  // opened was already visible in that grid, so it's on this first page unless the server's list
+  // changed underneath us since the grid loaded - in which case this falls back to fetching just
+  // this one asset, disabling paging, rather than re-querying further pages to keep searching.
   private suspend fun locateAsset(): AssetDetailUiState {
     val firstPage = fetchPage(null)
     if (firstPage is ImmichResult.Success) {
@@ -67,43 +67,34 @@ class AssetDetailViewModel(
       is ImmichResult.Failure -> assets
     }
 
-  fun previous() {
+  /**
+   * Called whenever the sibling pager settles on a new page, so [AssetDetailUiState.Loaded.asset]
+   * (what the favorite toggle and details panel act on) tracks what's actually on screen, and to
+   * prefetch once the user reaches the end of what's loaded so far.
+   */
+  fun onPageSettled(index: Int): Job = viewModelScope.launch {
     val state = mutableUiState.value
-    if (state is AssetDetailUiState.Loaded && state.hasPrevious) {
-      mutableUiState.value = state.copy(currentIndex = state.currentIndex - 1)
-    }
-  }
-
-  /** No-op if already loading another page, or if this was already the last asset. */
-  fun next(): Job = viewModelScope.launch {
-    val state = mutableUiState.value
-    if (state is AssetDetailUiState.Loaded && !state.isLoadingMore) {
-      if (state.currentIndex + 1 < state.assets.size) {
-        mutableUiState.value = state.copy(currentIndex = state.currentIndex + 1)
-      } else if (state.nextPage != null) {
-        advanceToNextPage(state)
+    if (state is AssetDetailUiState.Loaded) {
+      mutableUiState.value = state.copy(currentIndex = index)
+      if (index == state.assets.lastIndex && state.nextPage != null && !state.isLoadingMore) {
+        mutableUiState.value = state.copy(currentIndex = index, isLoadingMore = true)
+        mutableUiState.value =
+          when (val result = fetchPage(state.nextPage)) {
+            is ImmichResult.Success -> {
+              val merged = (state.assets + result.value.items).distinctBy { it.id }
+              state.copy(
+                currentIndex = index,
+                assets = merged,
+                nextPage = result.value.nextPage,
+                isLoadingMore = false,
+              )
+            }
+            is ImmichResult.Failure -> {
+              state.copy(currentIndex = index, isLoadingMore = false, nextPage = null)
+            }
+          }
       }
     }
-  }
-
-  private suspend fun advanceToNextPage(state: AssetDetailUiState.Loaded) {
-    mutableUiState.value = state.copy(isLoadingMore = true)
-    mutableUiState.value =
-      when (val result = fetchPage(state.nextPage)) {
-        is ImmichResult.Success -> {
-          val merged = (state.assets + result.value.items).distinctBy { it.id }
-          val advanced = merged.size > state.assets.size
-          state.copy(
-            assets = merged,
-            currentIndex = if (advanced) state.currentIndex + 1 else state.currentIndex,
-            nextPage = result.value.nextPage,
-            isLoadingMore = false,
-          )
-        }
-        is ImmichResult.Failure -> {
-          state.copy(isLoadingMore = false, nextPage = null)
-        }
-      }
   }
 
   /**

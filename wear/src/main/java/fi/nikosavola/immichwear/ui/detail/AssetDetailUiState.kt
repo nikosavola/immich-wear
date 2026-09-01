@@ -11,8 +11,9 @@ sealed interface AssetDetailUiState {
   /**
    * [assets] is the sibling list re-fetched from the same source (timeline/album/favorites) the
    * user opened this asset from, used only to page to the next/previous photo - not for the
-   * currently-viewed asset's own metadata, which always comes from [asset]. [nextPage] lets [next]
-   * fetch further pages once [currentIndex] reaches the end of what's loaded so far.
+   * currently-viewed asset's own metadata, which always comes from [asset]. [nextPage] lets
+   * [fi.nikosavola.immichwear.ui.detail.AssetDetailViewModel.onPageSettled] fetch further pages
+   * once [currentIndex] reaches the end of what's loaded so far.
    */
   data class Loaded(
     val assets: List<AssetDto>,
@@ -23,11 +24,5 @@ sealed interface AssetDetailUiState {
   ) : AssetDetailUiState {
     val asset: AssetDto
       get() = assets[currentIndex]
-
-    val hasPrevious: Boolean
-      get() = currentIndex > 0
-
-    val hasNext: Boolean
-      get() = currentIndex < assets.lastIndex || nextPage != null
   }
 }
