@@ -12,11 +12,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-// Bounds the re-query loop in locateAsset(): the asset being opened was already visible in the
-// grid the user tapped it from, so it's normally on the first page - this only guards against an
-// unbounded fetch loop if the server's list changed underneath us and the id is never found.
-private const val MAX_LOCATE_PAGES = 20
-
 class AssetDetailViewModel(
   private val repository: ImmichRepository,
   private val assetId: String,
@@ -34,39 +29,26 @@ class AssetDetailViewModel(
     mutableUiState.value = locateAsset()
   }
 
-  // Re-runs fetchPage (the same paginated query the caller's grid used) to rebuild the sibling
-  // list and find assetId's position in it, so next()/previous() can page through it. Falls back
-  // to fetching just this one asset - disabling next/previous - if it isn't found within
-  // MAX_LOCATE_PAGES pages (or fetchPage fails outright).
+  // Fetches the caller's grid's first page to rebuild the sibling list and find assetId's
+  // position in it, so next()/previous() can page through it. The asset being opened was already
+  // visible in that grid, so it's on this first page unless the server's list changed underneath
+  // us since the grid loaded - in which case this falls back to fetching just this one asset,
+  // disabling next/previous, rather than re-querying further pages to keep searching for it.
   private suspend fun locateAsset(): AssetDetailUiState {
-    var assets = emptyList<AssetDto>()
-    var page: Int? = null
-    var attempt = 0
-    var keepSearching = true
-    while (keepSearching && attempt < MAX_LOCATE_PAGES) {
-      when (val result = fetchPage(page)) {
-        is ImmichResult.Failure -> {
-          keepSearching = false
-        }
-        is ImmichResult.Success -> {
-          assets = (assets + result.value.items).distinctBy { it.id }
-          val index = assets.indexOfFirst { it.id == assetId }
-          if (index >= 0) {
-            return AssetDetailUiState.Loaded(
-              // The search/metadata query that finds siblings for paging never carries exifInfo
-              // (only GET /assets/{id} does) - enrich just the opened asset with a follow-up
-              // fetch so the details panel has EXIF to show. Best-effort: on failure this just
-              // keeps the plain entry from the list, same as this class's other silent fallbacks.
-              assets = withExifInfo(assets, index, assetId),
-              currentIndex = index,
-              nextPage = result.value.nextPage,
-            )
-          }
-          page = result.value.nextPage
-          keepSearching = page != null
-        }
+    val firstPage = fetchPage(null)
+    if (firstPage is ImmichResult.Success) {
+      val index = firstPage.value.items.indexOfFirst { it.id == assetId }
+      if (index >= 0) {
+        return AssetDetailUiState.Loaded(
+          // The search/metadata query that finds siblings for paging never carries exifInfo (only
+          // GET /assets/{id} does) - enrich just the opened asset with a follow-up fetch so the
+          // details panel has EXIF to show. Best-effort: on failure this just keeps the plain
+          // entry from the list, same as this class's other silent fallbacks.
+          assets = withExifInfo(firstPage.value.items, index, assetId),
+          currentIndex = index,
+          nextPage = firstPage.value.nextPage,
+        )
       }
-      attempt++
     }
     return when (val single = repository.asset(assetId)) {
       is ImmichResult.Success ->

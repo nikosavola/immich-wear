@@ -212,6 +212,22 @@ class AssetDetailScreenTest {
   }
 
   @Test
+  fun `an asset missing from the first page falls back to fetching it directly, without paging further`() {
+    var fetchCalls = 0
+    val fetch: suspend (Int?) -> ImmichResult<TimelinePage> = {
+      fetchCalls++
+      ImmichResult.Success(TimelinePage(items = listOf(asset("other")), nextPage = 2))
+    }
+    server.enqueue(MockResponse().setBody(assetJson())) // the single-asset fallback fetch
+    val viewModel = AssetDetailViewModel(repository, "a1", fetch)
+
+    composeRule.setContent { AssetDetailScreen(viewModel = viewModel, onNavigateToSettings = {}) }
+    waitForContentDescription("a1.jpg")
+
+    assertEquals(1, fetchCalls)
+  }
+
+  @Test
   fun `double-tapping the photo zooms in, and double-tapping again zooms back out`() {
     val fetch: suspend (Int?) -> ImmichResult<TimelinePage> = {
       ImmichResult.Success(TimelinePage(items = listOf(asset("a1"), asset("a2")), nextPage = null))
