@@ -30,7 +30,9 @@ android {
     applicationId = "fi.nikosavola.immichwear"
     minSdk = 26
     targetSdk = 36
-    versionCode = 1
+    // See gradle.properties - kept distinct from :wear's versionCode via that module's +1000
+    // offset.
+    versionCode = property("releaseNumber").toString().toInt()
     versionName = "0.1.0"
   }
 
