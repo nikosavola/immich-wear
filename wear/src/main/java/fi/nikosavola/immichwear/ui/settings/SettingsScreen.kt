@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -62,8 +63,8 @@ fun SettingsScreen(
   // Hoisted above the `when` below, not remembered inside SignedOutContent: that composable is
   // torn down and rebuilt every time uiState cycles through Connecting, which would otherwise
   // wipe both fields - forcing a full retype - on every rejected connect attempt.
-  var serverUrlInput by remember { mutableStateOf("") }
-  var apiKeyInput by remember { mutableStateOf("") }
+  var serverUrlInput by rememberSaveable { mutableStateOf("") }
+  var apiKeyInput by rememberSaveable { mutableStateOf("") }
 
   ScreenScaffold(scrollState = scrollState) { contentPadding ->
     Column(
