@@ -1,4 +1,4 @@
-# ![Immich Wear icon](design/wearos-icon/immich-wear-mark.svg) Immich Wear
+# <img src="design/wearos-icon/immich-wear-mark.svg" width="40" height="40" alt="Immich Wear icon"> Immich Wear
 
 [![CI](https://github.com/nikosavola/immich-wear/actions/workflows/ci.yml/badge.svg)](https://github.com/nikosavola/immich-wear/actions/workflows/ci.yml)
 [![License](https://img.shields.io/github/license/nikosavola/immich-wear)](LICENSE)
@@ -11,7 +11,14 @@ from a tile, all from your wrist. Not affiliated with or endorsed by the Immich 
 
 ## Screenshots
 
-_Coming soon - if you'd like to contribute a few, see [Contributing](#contributing) below._
+<table>
+  <tr>
+    <td align="center"><img src="design/screenshots/home.png" width="180" alt="Home menu"><br>Home</td>
+    <td align="center"><img src="design/screenshots/recent-photos.png" width="180" alt="Recent photos grid"><br>Recent photos</td>
+    <td align="center"><img src="design/screenshots/photo-viewer.png" width="180" alt="Full-screen photo viewer"><br>Photo viewer</td>
+    <td align="center"><img src="design/screenshots/favorites.png" width="180" alt="Favorites grid"><br>Favorites</td>
+  </tr>
+</table>
 
 ## Requirements
 
@@ -21,16 +28,22 @@ _Coming soon - if you'd like to contribute a few, see [Contributing](#contributi
 
 ## Installation
 
-Grab the `direct`-flavor APK from the [latest release](https://github.com/nikosavola/immich-wear/releases/latest)
-and sideload it with `adb install`.
+**Watch app:** grab the `direct`-flavor APK from the
+[latest release](https://github.com/nikosavola/immich-wear/releases/latest) and sideload it with
+`adb install`.
 
-Or build it yourself:
+**Phone companion app** (optional, but recommended - see [Configuration](#configuration) below):
+same release page, `mobile-debug.apk`.
+
+Or build both yourself:
 
 ```bash
 git clone https://github.com/nikosavola/immich-wear.git
 cd immich-wear
-just assemble   # or: ./gradlew :wear:assembleDirectDebug
-just install    # build and install on a connected watch
+just assemble                    # watch app (direct flavor)
+just install                     # build and install it on a connected watch
+./gradlew :mobile:assembleDebug  # phone companion app
+adb install mobile/build/outputs/apk/debug/mobile-debug.apk
 ```
 
 See [CONTRIBUTING.md](.github/CONTRIBUTING.md) for the full development setup.
