@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/nikosavola/immich-wear/actions/workflows/ci.yml/badge.svg)](https://github.com/nikosavola/immich-wear/actions/workflows/ci.yml)
 [![License](https://img.shields.io/github/license/nikosavola/immich-wear)](LICENSE)
+[![ZeroVer](https://img.shields.io/badge/versioning-ZeroVer-orange)](https://0ver.org)
 
 ______________________________________________________________________
 
