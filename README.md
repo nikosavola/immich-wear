@@ -57,14 +57,6 @@ Either way, sign-in happens exactly once - after that, the watch app works entir
 - Phone companion app for credential-free setup on the watch (see [Configuration](#configuration))
 - Dynamic color theming, following the system's Wear OS theme
 
-## Known limitations
-
-- **No offline access.** Every screen fetches from your server live; nothing is cached beyond
-  what Coil keeps for already-viewed thumbnails.
-- **Read-mostly.** You can favorite/unfavorite an asset, but there's no upload, delete, edit, or
-  album management from the watch.
-- **One account at a time.** Signing in replaces whatever was previously configured.
-
 ## Privacy
 
 Your API key is encrypted at rest (AES/GCM via the Android Keystore) and never leaves the
