@@ -1,9 +1,10 @@
-# ![Immich Wear icon](design/wearos-icon/play-store-icon-512.png) Immich Wear
+![Immich Wear](design/wearos-icon/immich-wear-mark.svg)
 
 [![CI](https://github.com/nikosavola/immich-wear/actions/workflows/ci.yml/badge.svg)](https://github.com/nikosavola/immich-wear/actions/workflows/ci.yml)
-[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](LICENSE)
+[![License](https://img.shields.io/github/license/nikosavola/immich-wear)](LICENSE)
+[![Liberapay](https://img.shields.io/liberapay/receives/nikosavola.svg?logo=liberapay)](https://liberapay.com/nikosavola/donate)
 
----
+______________________________________________________________________
 
 An unofficial [Immich](https://immich.app/) client for Wear OS. Browse your recent photos,
 albums, favorites, and "on this day" memories, favorite an asset, and glance at a random photo
@@ -62,24 +63,9 @@ logged, or sent anywhere by this app's developer.
 
 ## Contributing
 
-This is a two-module Gradle project: `:wear` (the watch app, in `direct` and `playstore`
-flavors) and `:mobile` (the phone companion, `playstore`-only in spirit). Development is driven
-through [`just`](https://just.systems/) - see the [`justfile`](justfile) for every available
-recipe (`just --list`), including:
-
-```sh
-just assemble            # build the direct-flavor debug APK
-just assemble playstore  # ...or the playstore flavor
-just test                # run the unit/Robolectric test suite
-just verify              # lint + build both flavors + test, matching CI
-just install             # build and install on a connected watch
-just install playstore   # ...or install the playstore flavor
-```
-
-A release build needs a signing key - copy `keystore.properties.example` to
-`keystore.properties` (gitignored) and fill in the four `RELEASE_*` properties, or set the
-equivalent `RELEASE_STORE_*` environment variables. Without one, release builds fall back to
-debug signing.
+See [CONTRIBUTING.md](.github/CONTRIBUTING.md) for development setup and guidelines, and
+[CODE_OF_CONDUCT.md](.github/CODE_OF_CONDUCT.md) for community expectations. Found a security
+issue? See [SECURITY.md](.github/SECURITY.md) instead of opening a public issue.
 
 ## Versioning
 
