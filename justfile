@@ -6,9 +6,6 @@
 
 max_workers := env('JUST_MAX_WORKERS', '2')
 sdk := env('ANDROID_HOME', env('ANDROID_SDK_ROOT', env('HOME') + '/Android/Sdk'))
-# "direct" is the sideload-friendly flavor (keeps on-watch login) - what every local
-# install/launch/test recipe here targets. "playstore" strips that; see wear/build.gradle.kts.
-apk := 'wear/build/outputs/apk/direct/debug/wear-direct-debug.apk'
 gradle := './gradlew --max-workers=' + max_workers
 package := 'fi.nikosavola.immichwear'
 
@@ -26,25 +23,26 @@ format:
 lint:
     {{ gradle }} lintAll
 
-# Build the debug APK
+# Build the debug APK. flavor: "direct" (default, sideload) or "playstore" - see wear/build.gradle.kts
 [group('build')]
-assemble:
-    {{ gradle }} :wear:assembleDirectDebug
+assemble flavor='direct':
+    {{ gradle }} :wear:assemble{{ capitalize(flavor) }}Debug
 
 # Remove build outputs
 [group('build')]
 clean:
     {{ gradle }} clean
 
-# Run the host-JVM unit tests
+# Run the host-JVM unit tests. Only "direct" has a full suite; "playstore" is compile-checked, not test-run
 [group('test')]
-test:
-    {{ gradle }} :wear:testDirectDebugUnitTest
+test flavor='direct':
+    {{ gradle }} :wear:test{{ capitalize(flavor) }}DebugUnitTest
 
-# Full local gate: lint, build and test, with --no-daemon to match CI exactly
+# Full local gate: lint, build (both flavors) and test, matching CI's verify + test jobs combined
 [group('test')]
 verify:
-    {{ gradle }} lintAll :wear:assembleDirectDebug :wear:testDirectDebugUnitTest --no-daemon
+    {{ gradle }} lintAll :wear:assembleDirectDebug :wear:assemblePlaystoreDebug \
+        :wear:testDirectDebugUnitTest --no-daemon
 
 # List connected adb devices, including wireless ones
 [group('device')]
@@ -70,10 +68,10 @@ connect:
 pair ip_port code:
     {{ sdk }}/platform-tools/adb pair {{ ip_port }} {{ code }}
 
-# Build and install the debug APK on the connected device
+# Build and install the debug APK on the connected device. flavor: "direct" or "playstore"
 [group('device')]
-install: assemble
-    {{ sdk }}/platform-tools/adb install -r {{ apk }}
+install flavor='direct': (assemble flavor)
+    {{ sdk }}/platform-tools/adb install -r wear/build/outputs/apk/{{ flavor }}/debug/wear-{{ flavor }}-debug.apk
 
 # Launch the app on the connected device
 [group('device')]
