@@ -1,8 +1,7 @@
-![Immich Wear](design/wearos-icon/immich-wear-mark.svg)
+# ![Immich Wear icon](design/wearos-icon/immich-wear-mark.svg) Immich Wear
 
 [![CI](https://github.com/nikosavola/immich-wear/actions/workflows/ci.yml/badge.svg)](https://github.com/nikosavola/immich-wear/actions/workflows/ci.yml)
 [![License](https://img.shields.io/github/license/nikosavola/immich-wear)](LICENSE)
-[![Liberapay](https://img.shields.io/liberapay/receives/nikosavola.svg?logo=liberapay)](https://liberapay.com/nikosavola/donate)
 
 ______________________________________________________________________
 
@@ -22,8 +21,19 @@ _Coming soon - if you'd like to contribute a few, see [Contributing](#contributi
 
 ## Installation
 
-Not yet published to the Play Store. Until then, build the `direct` flavor from source (see
-[Contributing](#contributing)) and sideload it.
+Grab the `direct`-flavor APK from the [latest release](https://github.com/nikosavola/immich-wear/releases/latest)
+and sideload it with `adb install`.
+
+Or build it yourself:
+
+```bash
+git clone https://github.com/nikosavola/immich-wear.git
+cd immich-wear
+just assemble   # or: ./gradlew :wear:assembleDirectDebug
+just install    # build and install on a connected watch
+```
+
+See [CONTRIBUTING.md](.github/CONTRIBUTING.md) for the full development setup.
 
 ## Configuration
 
