@@ -1,6 +1,6 @@
 [versions]
-agp = "9.2.1"
-kotlin = "2.4.0"
+agp = "9.4.0"
+kotlin = "2.4.10"
 wear-compose = "1.6.2"
 wear-tiles = "1.6.2"
 wear-protolayout = "1.4.2"
@@ -21,9 +21,9 @@ coil = "3.5.0"
 datastore-preferences = "1.2.1"
 robolectric = "4.16.1"
 androidx-test-core = "1.7.0"
-ktfmt = "0.26.0"
+ktfmt = "0.27.0"
 ktlint = "14.2.0"
-detekt = "2.0.0-alpha.5"
+detekt = "2.0.0-alpha.6"
 
 [libraries]
 kotlin-stdlib = { group = "org.jetbrains.kotlin", name = "kotlin-stdlib", version.ref = "kotlin" }
