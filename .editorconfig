@@ -32,6 +32,11 @@ ktlint_standard_string-template-indent = disabled
 ktlint_standard_trailing-comma-on-call-site = disabled
 ktlint_standard_trailing-comma-on-declaration-site = disabled
 ktlint_standard_spacing-between-declarations-with-comments = disabled
+# New in ktlint-cli 1.6/1.7 (this repo bumps past ktlint-gradle's bundled 1.5.0 in build.gradle.kts
+# to clear a Dependabot alert on its pinned logback version) - both rewrap `when` branches, so the
+# "rule that moves code across lines" rationale above applies to these too.
+ktlint_standard_when-entry-bracing = disabled
+ktlint_standard_blank-line-between-when-conditions = disabled
 # ktfmt sorts imports lexicographically (java.* among the rest); ktlint's layout wants java.* last.
 ktlint_standard_import-ordering = disabled
 # ktfmt keeps a short annotated declaration on one line, e.g. the Retrofit `@GET("user") suspend

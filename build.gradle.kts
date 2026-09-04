@@ -58,6 +58,11 @@ subprojects {
 
   configure<com.ncorti.ktfmt.gradle.KtfmtExtension> { googleStyle() }
 
+  // Override the ktlint-gradle plugin's bundled ktlint-cli (1.5.0 as of ktlint-gradle 14.2.0),
+  // whose pinned logback-classic 1.3.14 trips 3 Dependabot alerts fixed by logback 1.3.16 - see
+  // .github/SECURITY.md for the ones this doesn't clear (ktlint stays on the 1.3.x logback branch).
+  configure<org.jlleitschuh.gradle.ktlint.KtlintExtension> { version.set("1.8.0") }
+
   // The plugin's own ktfmtCheck/ktfmtFormat discover sources through KGP's Kotlin source sets,
   // which AGP 9's built-in Kotlin never registers: they end up with no actions and pass without
   // reading a single .kt file. Drive ktfmt from an explicit source tree instead.
