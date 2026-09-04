@@ -14,10 +14,11 @@ from a tile, all from your wrist. Not affiliated with or endorsed by the Immich 
 
 <table>
   <tr>
-    <td align="center"><img src="design/screenshots/home.png" width="180" alt="Home menu"><br>Home</td>
-    <td align="center"><img src="design/screenshots/recent-photos.png" width="180" alt="Recent photos grid"><br>Recent photos</td>
-    <td align="center"><img src="design/screenshots/photo-viewer.png" width="180" alt="Full-screen photo viewer"><br>Photo viewer</td>
-    <td align="center"><img src="design/screenshots/favorites.png" width="180" alt="Favorites grid"><br>Favorites</td>
+    <td align="center"><img src="design/screenshots/home.webp" width="150" alt="Home menu"><br>Home</td>
+    <td align="center"><img src="design/screenshots/recent-photos.webp" width="150" alt="Recent photos grid"><br>Recent photos</td>
+    <td align="center"><img src="design/screenshots/photo-viewer.webp" width="150" alt="Full-screen photo viewer"><br>Photo viewer</td>
+    <td align="center"><img src="design/screenshots/exif-favorite.webp" width="150" alt="EXIF details and favorite toggle"><br>EXIF & favorite</td>
+    <td align="center"><img src="design/screenshots/favorites.webp" width="150" alt="Favorites grid"><br>Favorites</td>
   </tr>
 </table>
 
