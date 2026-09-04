@@ -2,9 +2,10 @@
 
 ## Setup
 
-This is a two-module Gradle project: `:wear` (the watch app, in `direct` and `playstore` flavors -
-see [wear/build.gradle.kts](../wear/build.gradle.kts)) and `:mobile` (the phone companion). The
-Gradle wrapper is committed and provisions its own JDK toolchain, so there's no manual setup step:
+This is a two-module Gradle project: `:wear` (the watch app, in `direct`, `fdroid`, and `playstore`
+flavors - see [wear/build.gradle.kts](../wear/build.gradle.kts)) and `:mobile` (the phone
+companion). The Gradle wrapper is committed and provisions its own JDK toolchain, so there's no
+manual setup step:
 
 ```bash
 ./gradlew :wear:assembleDirectDebug
@@ -12,6 +13,15 @@ Gradle wrapper is committed and provisions its own JDK toolchain, so there's no 
 
 Everything below is also available as a [`just`](https://github.com/casey/just) recipe; run
 `just --list` to see them all.
+
+`fdroid` must never depend on a non-free Google library (directly or transitively) - it's the
+flavor intended for F-Droid, which rejects such apps outright. `direct` and `playstore` both need
+Google Play Services for the phone-companion login over the Wear OS Data Layer; that code lives in
+a `src/googlePlayServices/` source set shared by those two flavors (wired up in
+`wear/build.gradle.kts`'s `sourceSets` block) rather than `src/main`, which `fdroid` also builds
+from. `./gradlew :wear:verifyFdroidFlavorHasNoGoogleServices` (part of `just verify`/`lintAll`)
+enforces this by inspecting the actual resolved classpath of every `fdroid` variant, not just the
+dependencies block.
 
 ## Linting and formatting
 

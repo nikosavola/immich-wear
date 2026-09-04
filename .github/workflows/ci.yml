@@ -56,9 +56,10 @@ jobs:
       # See the comment in the verify job: assembleDebug/testDebugUnitTest also configure AGP,
       # which needs compileSdk 36 resolvable. testDebugUnitTest covers everything: plain JVM unit
       # tests, per-screen Robolectric Compose tests, and the end-to-end flow test - none of them
-      # need an emulator. assemblePlaystoreDebug also builds here so a compile break confined to
-      # that flavor's BuildConfig-gated branch can't slip through unnoticed; its full unit test
-      # suite isn't run because most Settings screen tests assume "direct"'s on-watch login UI.
+      # need an emulator. assemblePlaystoreDebug/assembleFdroidDebug also build here so a compile
+      # break confined to either flavor's BuildConfig-gated branch or source set can't slip through
+      # unnoticed; their full unit test suites aren't run because most Settings screen tests assume
+      # "direct"'s on-watch login UI.
       - name: Set up Android SDK
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4
         with:
@@ -68,7 +69,7 @@ jobs:
         # both runs every suite and generates the coverage reports Codecov and build.gradle.kts's
         # sonar.coverage.jacoco.xmlReportPaths read below.
         run: |
-          ./gradlew :wear:assembleDirectDebug :wear:assemblePlaystoreDebug \
+          ./gradlew :wear:assembleDirectDebug :wear:assemblePlaystoreDebug :wear:assembleFdroidDebug \
             :wear:testDirectDebugUnitTest :wear:koverXmlReportDirectDebug \
             :mobile:assembleDebug :mobile:testDebugUnitTest :mobile:koverXmlReportDebug --no-daemon
       - name: Upload coverage to Codecov
