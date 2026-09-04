@@ -34,7 +34,7 @@ android {
     // See gradle.properties - kept distinct from :wear's versionCode via that module's +1000
     // offset.
     versionCode = property("releaseNumber").toString().toInt()
-    versionName = "0.1.0"
+    versionName = "0.1.1"
   }
 
   signingConfigs {
