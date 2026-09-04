@@ -10,6 +10,8 @@ import coil3.ImageLoader
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import fi.nikosavola.immichwear.data.AndroidKeystoreApiKeyCipher
 import fi.nikosavola.immichwear.data.ApiKeyCipher
+import fi.nikosavola.immichwear.data.AssetCache
+import fi.nikosavola.immichwear.data.FileAssetCache
 import fi.nikosavola.immichwear.data.ImmichRepository
 import fi.nikosavola.immichwear.data.SettingsStore
 import fi.nikosavola.immichwear.data.api.createImmichClients
@@ -20,6 +22,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 
 private const val SETTINGS_DATASTORE_FILE_NAME = "settings.preferences_pb"
+private const val ASSET_CACHE_DIR_NAME = "asset_cache"
 
 /**
  * Manual DI root: no Hilt/Koin. Built once by [fi.nikosavola.immichwear.ImmichApp] and handed down
@@ -32,6 +35,9 @@ private const val SETTINGS_DATASTORE_FILE_NAME = "settings.preferences_pb"
  *   or point it at a temp file; production always uses the default.
  * @param apiKeyCipher overridable because the real Android Keystore provider isn't available under
  *   Robolectric/JVM tests; production always uses the default.
+ * @param assetCache overridable so tests can point it at a temp directory; production always uses
+ *   the default, under [Context.getCacheDir] rather than [Context.getFilesDir] since this is a
+ *   best-effort convenience cache the OS may clear under storage pressure, not durable state.
  */
 class AppContainer(
   context: Context,
@@ -45,6 +51,7 @@ class AppContainer(
       produceFile = { File(context.filesDir, SETTINGS_DATASTORE_FILE_NAME) },
     ),
   apiKeyCipher: ApiKeyCipher = AndroidKeystoreApiKeyCipher(),
+  assetCache: AssetCache = FileAssetCache(File(context.cacheDir, ASSET_CACHE_DIR_NAME)),
 ) {
   private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -65,6 +72,7 @@ class AppContainer(
     ImmichRepository(
       clients.api,
       settingsStore,
+      assetCache = assetCache,
       settingsPrimed = applicationScope.async { settingsStore.currentSettings() },
     )
 

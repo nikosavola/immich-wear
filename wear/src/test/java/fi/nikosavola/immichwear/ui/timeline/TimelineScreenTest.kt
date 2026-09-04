@@ -16,6 +16,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.wear.compose.material3.Text
 import fi.nikosavola.immichwear.R
 import fi.nikosavola.immichwear.data.FakeApiKeyCipher
+import fi.nikosavola.immichwear.data.FileAssetCache
 import fi.nikosavola.immichwear.data.ImmichRepository
 import fi.nikosavola.immichwear.data.SettingsStore
 import fi.nikosavola.immichwear.data.api.createImmichClients
@@ -176,5 +177,58 @@ class TimelineScreenTest {
     composeRule.onNodeWithText(string(R.string.timeline_load_more_button)).performClick()
 
     waitForContentDescription("asset-2.jpg")
+  }
+
+  @Test
+  fun `an offline fallback shows the cached-photos banner, and tapping it retries the fetch`() {
+    connect()
+    // A separate, cache-backed repository: the shared `repository` from setUp() uses the default
+    // NoOpAssetCache, since most tests here don't care about caching.
+    val cachedRepository =
+      ImmichRepository(
+        createImmichClients(
+            apiKey = settingsStore.apiKeySupplier,
+            serverBaseUrl = settingsStore.serverUrlSupplier,
+          )
+          .api,
+        settingsStore,
+        FileAssetCache(tempFolder.newFolder()),
+      )
+    server.enqueue(
+      MockResponse()
+        .setBody("""{"assets": {"items": [${assetJson("asset-1")}], "nextPage": null}}""")
+    )
+    runBlocking { cachedRepository.timeline() } // populates the cache
+    // A 500 (looksOffline treats 5xx like a transport failure - see ImmichRepository) rather than
+    // disconnecting the socket or shutting the server down: those leave the client's retry/timeout
+    // behavior to chase, whereas an HTTP error response is immediate and deterministic, and the
+    // server stays alive to serve the retry below.
+    server.enqueue(MockResponse().setResponseCode(500))
+    val viewModel = PagedAssetsViewModel(cachedRepository::timeline)
+
+    composeRule.setContent {
+      TimelineScreen(viewModel = viewModel, onAssetClick = {}, onNavigateToSettings = {})
+    }
+    waitForText(string(R.string.asset_grid_offline_cached))
+    // The cached photo itself is still shown alongside the banner, not replaced by an error state.
+    waitForContentDescription("asset-1.jpg")
+
+    server.enqueue(
+      MockResponse()
+        .setBody(
+          """{"assets": {"items": [${assetJson("asset-1")}, ${assetJson("asset-2")}],""" +
+            """ "nextPage": null}}"""
+        )
+    )
+    composeRule.onNodeWithText(string(R.string.asset_grid_offline_cached)).performClick()
+
+    // A fresh, non-cached fetch succeeded: the banner is gone and the new item is visible.
+    waitForContentDescription("asset-2.jpg")
+    assertTrue(
+      composeRule
+        .onAllNodesWithText(string(R.string.asset_grid_offline_cached))
+        .fetchSemanticsNodes()
+        .isEmpty()
+    )
   }
 }
