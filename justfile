@@ -23,7 +23,7 @@ format:
 lint:
     {{ gradle }} lintAll
 
-# Build the debug APK. flavor: "direct" (default, sideload) or "playstore" - see wear/build.gradle.kts
+# Build the debug APK. flavor: "direct" (default, sideload), "fdroid", or "playstore" - see wear/build.gradle.kts
 [group('build')]
 assemble flavor='direct':
     {{ gradle }} :wear:assemble{{ capitalize(flavor) }}Debug
@@ -38,10 +38,10 @@ clean:
 test flavor='direct':
     {{ gradle }} :wear:test{{ capitalize(flavor) }}DebugUnitTest
 
-# Full local gate: lint, build (both flavors) and test, matching CI's verify + test jobs combined
+# Full local gate: lint, build (all flavors) and test, matching CI's verify + test jobs combined
 [group('test')]
 verify:
-    {{ gradle }} lintAll :wear:assembleDirectDebug :wear:assemblePlaystoreDebug \
+    {{ gradle }} lintAll :wear:assembleDirectDebug :wear:assemblePlaystoreDebug :wear:assembleFdroidDebug \
         :wear:testDirectDebugUnitTest --no-daemon
 
 # List connected adb devices, including wireless ones
@@ -68,7 +68,7 @@ connect:
 pair ip_port code:
     {{ sdk }}/platform-tools/adb pair {{ ip_port }} {{ code }}
 
-# Build and install the debug APK on the connected device. flavor: "direct" or "playstore"
+# Build and install the debug APK on the connected device. flavor: "direct", "fdroid", or "playstore"
 [group('device')]
 install flavor='direct': (assemble flavor)
     {{ sdk }}/platform-tools/adb install -r wear/build/outputs/apk/{{ flavor }}/debug/wear-{{ flavor }}-debug.apk

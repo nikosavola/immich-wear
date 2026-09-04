@@ -88,6 +88,13 @@ subprojects {
     parallel = true
     config.setFrom(rootProject.file("config/detekt/detekt.yml"))
   }
+
+  // Same problem and fix as ktfmtCheckKotlin/ktfmtFormatKotlin above: the default detekt task
+  // only discovers source through KGP's Kotlin source sets, which AGP 9's built-in Kotlin never
+  // registers for a flavor-specific dir like :wear's src/googlePlayServices - it would otherwise
+  // silently skip analyzing that code entirely. dev.detekt.gradle.Detekt extends SourceTask, so
+  // (unlike ktfmt) no separate custom task is needed - just repoint the existing one explicitly.
+  tasks.withType<dev.detekt.gradle.Detekt> { setSource(fileTree("src") { include("**/*.kt") }) }
 }
 
 tasks.register("formatAll") {
@@ -116,6 +123,7 @@ tasks.register("lintAll") {
     ":wear:detekt",
     // "direct" only, matching the default flavor everything else here targets - see justfile.
     ":wear:lintDirectDebug",
+    ":wear:verifyFdroidFlavorHasNoGoogleServices",
     ":mobile:ktfmtCheckScripts",
     ":mobile:ktfmtSourcesNotEmpty",
     ":mobile:ktfmtCheckKotlin",
