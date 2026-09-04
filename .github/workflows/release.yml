@@ -1,0 +1,126 @@
+name: Release
+# Builds signed release APKs (wear's direct flavor, and mobile) and attaches them to a GitHub
+# Release when a version tag is pushed. See docs/RELEASING.md for the one-time keystore/secrets
+# setup this depends on.
+on:
+  push:
+    tags:
+      - 'v*'
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Never cancel mid-release: a cancelled run can leave a partial GitHub Release behind.
+  cancel-in-progress: false
+permissions: {}
+jobs:
+  build:
+    name: Build Signed Release APKs
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write # to create the GitHub Release and upload assets
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      # Catches "tagged a release without bumping versionName" before spending any build time on
+      # it - both files hardcode this independently (see docs/RELEASING.md section 5), so nothing
+      # else enforces they match the tag.
+      - name: Verify versionName matches the pushed tag
+        run: |
+          expected="${GITHUB_REF_NAME#v}"
+          for f in wear/build.gradle.kts mobile/build.gradle.kts; do
+            if ! grep -q "versionName = \"$expected\"" "$f"; then
+              echo "::error::$f's versionName doesn't match tag $GITHUB_REF_NAME (expected \"$expected\") - bump it before tagging, see docs/RELEASING.md" >&2
+              exit 1
+            fi
+          done
+      # wear/build.gradle.kts and mobile/build.gradle.kts silently fall back to debug signing
+      # when RELEASE_STORE_FILE isn't set - deliberate for local dev, but here it would mean this
+      # workflow "succeeds" while quietly publishing a debug-signed APK as a real GitHub Release.
+      # Fail loudly instead of letting that happen unnoticed.
+      - name: Verify release signing secrets are configured
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          missing=()
+          [ -z "$RELEASE_KEYSTORE_BASE64" ] && missing+=("RELEASE_KEYSTORE_BASE64")
+          [ -z "$RELEASE_STORE_PASSWORD" ] && missing+=("RELEASE_STORE_PASSWORD")
+          [ -z "$RELEASE_KEY_ALIAS" ] && missing+=("RELEASE_KEY_ALIAS")
+          [ -z "$RELEASE_KEY_PASSWORD" ] && missing+=("RELEASE_KEY_PASSWORD")
+          if [ ${#missing[@]} -ne 0 ]; then
+            echo "::error::Missing release signing secret(s): ${missing[*]} - see docs/RELEASING.md" >&2
+            exit 1
+          fi
+      - name: Set up Java JDK 21
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+      # Same packages as ci.yml, deliberately not cached here: this job builds and publishes
+      # signed artifacts from a tag push, and a shared Gradle cache keyed across refs is a real
+      # cache-poisoning surface for a job with that much blast radius. Releases are infrequent;
+      # the cache miss cost is not worth it.
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4
+        with:
+          packages: 'platforms;android-36 build-tools;36.0.0'
+      - name: Decode release keystore
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+        run: |
+          keystore_path="$RUNNER_TEMP/release.jks"
+          echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > "$keystore_path"
+          chmod 600 "$keystore_path"
+          echo "RELEASE_STORE_FILE=$keystore_path" >> "$GITHUB_ENV"
+      - name: Build signed release APKs
+        # wear and mobile must share the same signing certificate - see the comment in
+        # wear/build.gradle.kts - so both are built here with the same env vars in one step
+        # rather than as separate jobs, keeping that invariant obviously true rather than
+        # something two independent job configs could accidentally drift apart on.
+        env:
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: ./gradlew :wear:assembleDirectRelease :mobile:assembleRelease --no-daemon
+      # The build step only proves the signing config was *applied*, not that both APKs actually
+      # ended up sharing one certificate - check the built artifacts directly, since that's the
+      # actual invariant the Wear OS Data Layer routing depends on.
+      - name: Verify wear and mobile share the same signing certificate
+        run: |
+          apksigner="$ANDROID_HOME/build-tools/36.0.0/apksigner"
+          wear_apk=$(find wear/build/outputs/apk/direct/release -name '*.apk')
+          mobile_apk=$(find mobile/build/outputs/apk/release -name '*.apk')
+          wear_cert=$("$apksigner" verify --print-certs "$wear_apk" | grep 'SHA-256 digest' | head -1)
+          mobile_cert=$("$apksigner" verify --print-certs "$mobile_apk" | grep 'SHA-256 digest' | head -1)
+          echo "wear:   $wear_cert"
+          echo "mobile: $mobile_cert"
+          if [ "$wear_cert" != "$mobile_cert" ]; then
+            echo "::error::wear and mobile release APKs are signed with different certificates - the phone-companion login won't work" >&2
+            exit 1
+          fi
+      - name: Rename R8 mapping files for release upload
+        # Crash reports from these minified builds are only de-obfuscatable with the mapping that
+        # produced them - keep it attached to the release itself, since it can't be regenerated
+        # later once this run's workspace is gone.
+        run: |
+          cp wear/build/outputs/mapping/directRelease/mapping.txt wear-direct-release-mapping.txt
+          cp mobile/build/outputs/mapping/release/mapping.txt mobile-release-mapping.txt
+      - name: Create GitHub Release
+        # Deliberate choice over a `gh release` script step: multi-file glob asset upload is
+        # worth the well-known action here.
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2 # zizmor: ignore[superfluous-actions]
+        with:
+          # Without this, a glob that matches nothing (e.g. AGP changes its output layout) still
+          # exits 0 and publishes an empty-looking release instead of failing the job.
+          fail_on_unmatched_files: true
+          # v*-rc1/-beta1/etc shouldn't become the /releases/latest page points at.
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          files: |
+            wear/build/outputs/apk/direct/release/*.apk
+            mobile/build/outputs/apk/release/*.apk
+            wear-direct-release-mapping.txt
+            mobile-release-mapping.txt
