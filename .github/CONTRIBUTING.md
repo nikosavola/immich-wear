@@ -53,7 +53,9 @@ just install   # build and install it on a connected watch
 
 A release build needs a signing key: copy `keystore.properties.example` to `keystore.properties`
 (gitignored) and fill in the four `RELEASE_*` properties, or set the equivalent `RELEASE_STORE_*`
-environment variables. Without one, release builds fall back to debug signing.
+environment variables. Without one, release builds fall back to debug signing. See
+[docs/RELEASING.md](../docs/RELEASING.md) for generating a real key and cutting a signed GitHub
+Release.
 
 ## Before opening a pull request
 

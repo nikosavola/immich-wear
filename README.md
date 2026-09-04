@@ -32,12 +32,12 @@ from a tile, all from your wrist. Not affiliated with or endorsed by the Immich 
 
 ## Installation
 
-**Watch app:** grab the `direct`-flavor APK from the
+**Watch app:** grab `wear-direct-release.apk` from the
 [latest release](https://github.com/nikosavola/immich-wear/releases/latest) and sideload it with
 `adb install`.
 
 **Phone companion app** (optional, but recommended - see [Configuration](#configuration) below):
-same release page, `mobile-debug.apk`.
+same release page, `mobile-release.apk`.
 
 Or build both yourself:
 
@@ -49,6 +49,11 @@ just install                     # build and install it on a connected watch
 ./gradlew :mobile:assembleDebug  # phone companion app
 adb install mobile/build/outputs/apk/debug/mobile-debug.apk
 ```
+
+Don't mix release and self-built (debug) APKs between the two apps, and don't install one over
+the other: they're signed with different keys, so `adb install` will refuse to upgrade one signed
+build with the other, and the phone-companion login only works when both apps share the exact same
+signing certificate.
 
 See [CONTRIBUTING.md](.github/CONTRIBUTING.md) for the full development setup.
 
