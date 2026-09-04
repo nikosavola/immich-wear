@@ -64,13 +64,30 @@ jobs:
         with:
           packages: 'platforms;android-36 build-tools;36.0.0'
       - name: Build and Run Unit Tests
+        # koverXmlReportDirectDebug/koverXmlReportDebug depend on their module's test task, so this
+        # both runs every suite and generates the coverage reports Codecov and build.gradle.kts's
+        # sonar.coverage.jacoco.xmlReportPaths read below.
         run: |
           ./gradlew :wear:assembleDirectDebug :wear:assemblePlaystoreDebug \
-            :wear:testDirectDebugUnitTest \
-            :mobile:assembleDebug :mobile:testDebugUnitTest --no-daemon
+            :wear:testDirectDebugUnitTest :wear:koverXmlReportDirectDebug \
+            :mobile:assembleDebug :mobile:testDebugUnitTest :mobile:koverXmlReportDebug --no-daemon
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@e53489f4d376d79066609109e7a95a29eb3740b1 # v7.0.0
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: wear/build/reports/kover/reportDirectDebug.xml,mobile/build/reports/kover/reportDebug.xml
+          fail_ci_if_error: true
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@0fa95f0e1eeaafde2c782583b36b28ad0d8c77d3 # v1.2.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: wear/build/test-results/testDirectDebugUnitTest/*.xml,mobile/build/test-results/testDebugUnitTest/*.xml
       - name: Upload Test Reports on Failure
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: test-reports
-          path: wear/build/reports/tests/
+          path: |
+            wear/build/reports/tests/
+            mobile/build/reports/tests/
