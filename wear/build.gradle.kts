@@ -6,6 +6,7 @@ plugins {
   // classpath).
   alias(libs.plugins.compose.compiler)
   alias(libs.plugins.kotlin.serialization)
+  alias(libs.plugins.kover)
 }
 
 // Real secrets come from keystore.properties (gitignored) or RELEASE_STORE_* env vars (CI); see

@@ -1,0 +1,52 @@
+name: SonarQube
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened]
+permissions: {}
+jobs:
+  build:
+    name: Build and analyze
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          # Shallow clones disable relevancy of analysis (blame-based issue attribution).
+          fetch-depth: 0
+      # Same JDK as the rest of this repo's CI (see ci.yml), not the SonarQube docs' JDK 17
+      # default: analysis runs assembleDebug/testDebugUnitTest, which need the JDK this project
+      # actually compiles with.
+      - name: Set up Java JDK 21
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'gradle'
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4
+        with:
+          packages: 'platforms;android-36 build-tools;36.0.0'
+      - name: Cache SonarQube packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+      - name: Build and analyze
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        # No plain `build` task exists at the root of this Android project (unlike the SonarQube
+        # docs' generic example), so build the app and run its tests explicitly before analysis.
+        # koverXmlReportDirectDebug/koverXmlReportDebug generates the coverage report
+        # build.gradle.kts's sonar.coverage.jacoco.xmlReportPaths points at - without running these
+        # here, Sonar finds no report and always shows 0% coverage, regardless of how much of the
+        # diff tests actually cover.
+        run: |
+          ./gradlew :wear:assembleDirectDebug :wear:testDirectDebugUnitTest :wear:koverXmlReportDirectDebug \
+            :mobile:assembleDebug :mobile:testDebugUnitTest :mobile:koverXmlReportDebug sonar --no-daemon

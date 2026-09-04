@@ -6,6 +6,7 @@ plugins {
   // classpath).
   alias(libs.plugins.compose.compiler)
   alias(libs.plugins.kotlin.serialization)
+  alias(libs.plugins.kover)
 }
 
 // Kept identical to :wear/build.gradle.kts's copy of this block - both apps must sign with the

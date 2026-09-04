@@ -16,6 +16,30 @@ plugins {
   alias(libs.plugins.ktfmt) apply false
   alias(libs.plugins.ktlint) apply false
   alias(libs.plugins.detekt) apply false
+  alias(libs.plugins.kover) apply false
+  alias(libs.plugins.sonarqube)
+}
+
+sonar {
+  properties {
+    property("sonar.projectKey", "nikosavola_immich-wear")
+    property("sonar.organization", "nikosavola")
+    // Same Kover-generated report the Codecov step in ci.yml uploads; sonar-kotlin reads JaCoCo-XML
+    // format under this key for both JaCoCo and Kover. Without it, SonarCloud has no coverage data
+    // source at all and reports a flat 0% on every PR, regardless of actual test coverage. Must be
+    // absolute: this property set from the root project is resolved relative to the *module*
+    // directory (wear/), not the root, so a root-relative literal here silently resolves to
+    // wear/wear/build/... and is never found. Only the "direct" flavor is covered, matching the
+    // only variant ci.yml actually runs unit tests against (see wear/build.gradle.kts comment).
+    property(
+      "sonar.coverage.jacoco.xmlReportPaths",
+      listOf(
+          file("wear/build/reports/kover/reportDirectDebug.xml"),
+          file("mobile/build/reports/kover/reportDebug.xml"),
+        )
+        .joinToString(",") { it.absolutePath },
+    )
+  }
 }
 
 // Applied to the root project too so ktfmtFormat/ktfmtCheck also cover this file and

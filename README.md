@@ -1,6 +1,8 @@
 # <img src="design/wearos-icon/immich-wear-mark.svg" width="40" height="40" alt="Immich Wear icon"> Immich Wear
 
 [![CI](https://github.com/nikosavola/immich-wear/actions/workflows/ci.yml/badge.svg)](https://github.com/nikosavola/immich-wear/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/nikosavola/immich-wear/graph/badge.svg)](https://codecov.io/gh/nikosavola/immich-wear)
+[![Quality gate status](https://sonarcloud.io/api/project_badges/measure?project=nikosavola_immich-wear&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=nikosavola_immich-wear)
 [![License](https://img.shields.io/github/license/nikosavola/immich-wear)](LICENSE)
 [![ZeroVer](https://img.shields.io/badge/versioning-ZeroVer-orange)](https://0ver.org)
 
