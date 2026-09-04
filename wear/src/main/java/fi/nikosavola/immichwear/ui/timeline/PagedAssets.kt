@@ -20,7 +20,11 @@ internal suspend fun loadPagedAssets(
       // assets landed on the server can overlap the previous page. Deduping by id keeps that from
       // producing duplicate LazyColumn keys (a hard crash) or a visibly repeated row.
       val items = (existing + result.value.items).distinctBy { it.id }
-      TimelineUiState.Loaded(items = items, nextPage = result.value.nextPage)
+      TimelineUiState.Loaded(
+        items = items,
+        nextPage = result.value.nextPage,
+        isFromCache = result.fromCache,
+      )
     }
     is ImmichResult.Failure -> {
       if (existing.isEmpty()) {

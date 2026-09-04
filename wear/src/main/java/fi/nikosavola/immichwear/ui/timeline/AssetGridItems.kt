@@ -1,6 +1,7 @@
 package fi.nikosavola.immichwear.ui.timeline
 
 import androidx.annotation.StringRes
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,7 +10,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.foundation.lazy.TransformingLazyColumnScope
 import androidx.wear.compose.foundation.lazy.items
@@ -49,34 +52,68 @@ fun TransformingLazyColumnScope.assetGridItems(
       }
     }
     is TimelineUiState.Loaded -> {
-      if (uiState.items.isEmpty()) {
-        item { GridMessage(text = stringResource(emptyMessageRes)) }
-      } else {
-        items(items = uiState.items.chunked(GRID_COLUMNS), key = { row -> row.first().id }) { row ->
-          AssetRow(row = row, onAssetClick = onAssetClick, modifier = Modifier.fillMaxWidth())
-        }
-        if (uiState.nextPage != null) {
-          item {
-            Button(
-              onClick = onLoadMore,
-              modifier = Modifier.fillMaxWidth(),
-              enabled = !uiState.isLoadingMore,
-            ) {
-              Text(
-                text =
-                  stringResource(
-                    if (uiState.isLoadingMore) {
-                      R.string.loading
-                    } else {
-                      R.string.timeline_load_more_button
-                    }
-                  )
-              )
-            }
-          }
-        }
-      }
+      loadedItems(
+        uiState = uiState,
+        emptyMessageRes = emptyMessageRes,
+        onAssetClick = onAssetClick,
+        onLoadMore = onLoadMore,
+        onRetry = onRetry,
+      )
     }
+  }
+}
+
+private fun TransformingLazyColumnScope.loadedItems(
+  uiState: TimelineUiState.Loaded,
+  @StringRes emptyMessageRes: Int,
+  onAssetClick: (assetId: String) -> Unit,
+  onLoadMore: () -> Unit,
+  onRetry: () -> Unit,
+) {
+  if (uiState.items.isEmpty()) {
+    item { GridMessage(text = stringResource(emptyMessageRes)) }
+    return
+  }
+  if (uiState.isFromCache) {
+    // Tappable: this is the only way back to a live fetch once the grid is already showing cached
+    // content - reloading the screen is otherwise the only escape, since a cache hit always sets
+    // nextPage to null (see ImmichRepository.cachedFirstPage), so there's no load-more to retry
+    // via.
+    item { OfflineCachedBanner(onClick = onRetry) }
+  }
+  items(items = uiState.items.chunked(GRID_COLUMNS), key = { row -> row.first().id }) { row ->
+    AssetRow(row = row, onAssetClick = onAssetClick, modifier = Modifier.fillMaxWidth())
+  }
+  if (uiState.nextPage != null) {
+    item { LoadMoreButton(isLoadingMore = uiState.isLoadingMore, onClick = onLoadMore) }
+  }
+}
+
+@Composable
+private fun OfflineCachedBanner(onClick: () -> Unit) {
+  Text(
+    text = stringResource(R.string.asset_grid_offline_cached),
+    style = MaterialTheme.typography.bodyMedium,
+    color = MaterialTheme.colorScheme.onSurfaceVariant,
+    textAlign = TextAlign.Center,
+    textDecoration = TextDecoration.Underline,
+    modifier =
+      Modifier.fillMaxWidth().padding(horizontal = 16.dp).clickable(
+        onClickLabel = stringResource(R.string.retry_button),
+        role = Role.Button,
+      ) {
+        onClick()
+      },
+  )
+}
+
+@Composable
+private fun LoadMoreButton(isLoadingMore: Boolean, onClick: () -> Unit) {
+  Button(onClick = onClick, modifier = Modifier.fillMaxWidth(), enabled = !isLoadingMore) {
+    Text(
+      text =
+        stringResource(if (isLoadingMore) R.string.loading else R.string.timeline_load_more_button)
+    )
   }
 }
 

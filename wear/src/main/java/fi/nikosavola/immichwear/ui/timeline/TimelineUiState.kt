@@ -17,5 +17,8 @@ sealed interface TimelineUiState {
     val items: List<AssetDto>,
     val nextPage: Int?,
     val isLoadingMore: Boolean = false,
+    // True when [items] came from ImmichRepository's offline cache fallback rather than a live
+    // fetch - see ImmichResult.Success.fromCache.
+    val isFromCache: Boolean = false,
   ) : TimelineUiState
 }

@@ -2,7 +2,11 @@ package fi.nikosavola.immichwear.data
 
 /** Result of a repository operation: never thrown for the expected API/network failure modes. */
 sealed interface ImmichResult<out T> {
-  data class Success<out T>(val value: T) : ImmichResult<T>
+  /**
+   * [fromCache] is true only for the offline-cache fallback in [ImmichRepository] - never set by a
+   * real network response.
+   */
+  data class Success<out T>(val value: T, val fromCache: Boolean = false) : ImmichResult<T>
 
   data class Failure(val error: ImmichError) : ImmichResult<Nothing>
 }

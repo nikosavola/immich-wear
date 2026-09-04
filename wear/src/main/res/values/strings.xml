@@ -5,6 +5,7 @@
     <string name="retry_button">Retry</string>
     <string name="go_to_settings_button">Go to Settings</string>
     <string name="cancel_button">Cancel</string>
+    <string name="asset_grid_offline_cached">Offline - showing saved photos. Tap to retry.</string>
 
     <string name="settings_title">Settings</string>
     <string name="settings_server_url_label">Server URL</string>

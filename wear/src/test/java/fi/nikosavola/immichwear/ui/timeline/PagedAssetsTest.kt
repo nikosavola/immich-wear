@@ -42,4 +42,17 @@ class PagedAssetsTest {
     assertEquals(listOf("a1", "a2"), loaded.items.map { it.id })
     assertEquals(3, loaded.nextPage)
   }
+
+  @Test
+  fun `a result served from the offline cache carries isFromCache through to the UI state`() =
+    runTest {
+      val page = TimelinePage(items = listOf(asset("a1")), nextPage = null)
+
+      val state =
+        loadPagedAssets(page = null, existing = emptyList()) {
+          ImmichResult.Success(page, fromCache = true)
+        }
+
+      assertEquals(true, (state as TimelineUiState.Loaded).isFromCache)
+    }
 }
