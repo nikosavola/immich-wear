@@ -35,7 +35,7 @@ android {
     targetSdk = 36
     // +1000 offset keeps this distinct from :mobile's versionCode - see gradle.properties.
     versionCode = property("releaseNumber").toString().toInt() + 1000
-    versionName = "0.1.1"
+    versionName = "0.1.2"
   }
 
   // "direct" keeps on-watch server URL/API key entry (Settings) for anyone building/sideloading
