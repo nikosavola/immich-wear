@@ -104,7 +104,7 @@ repositories {
   }
 }
 
-dependencies { implementation("fi.nikosavola:immich-api:0.1.1") }
+dependencies { implementation("fi.nikosavola:immich-api:0.1.2") }
 ```
 
 The artifact carries the same AGPL-3.0 license as this repository, which binds anything linking it too. Publishing
