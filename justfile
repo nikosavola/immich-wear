@@ -42,7 +42,7 @@ test flavor='direct':
 [group('test')]
 verify:
     {{ gradle }} lintAll :wear:assembleDirectDebug :wear:assemblePlaystoreDebug :wear:assembleFdroidDebug \
-        :wear:testDirectDebugUnitTest --no-daemon
+        :wear:testDirectDebugUnitTest :immich-api:test --no-daemon
 
 # List connected adb devices, including wireless ones
 [group('device')]

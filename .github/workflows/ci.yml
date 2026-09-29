@@ -67,23 +67,25 @@ jobs:
       - name: Build and Run Unit Tests
         # koverXmlReportDirectDebug/koverXmlReportDebug depend on their module's test task, so this
         # both runs every suite and generates the coverage reports Codecov and build.gradle.kts's
-        # sonar.coverage.jacoco.xmlReportPaths read below.
+        # sonar.coverage.jacoco.xmlReportPaths read below. immich-api is a plain Kotlin/JVM module
+        # (no Android variants), so its Kover task is koverXmlReport, not koverXmlReportDebug.
         run: |
           ./gradlew :wear:assembleDirectDebug :wear:assemblePlaystoreDebug :wear:assembleFdroidDebug \
             :wear:testDirectDebugUnitTest :wear:koverXmlReportDirectDebug \
-            :mobile:assembleDebug :mobile:testDebugUnitTest :mobile:koverXmlReportDebug --no-daemon
+            :mobile:assembleDebug :mobile:testDebugUnitTest :mobile:koverXmlReportDebug \
+            :immich-api:test :immich-api:koverXmlReport --no-daemon
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@e53489f4d376d79066609109e7a95a29eb3740b1 # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: wear/build/reports/kover/reportDirectDebug.xml,mobile/build/reports/kover/reportDebug.xml
+          files: wear/build/reports/kover/reportDirectDebug.xml,mobile/build/reports/kover/reportDebug.xml,immich-api/build/reports/kover/report.xml
           fail_ci_if_error: true
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
         uses: codecov/test-results-action@0fa95f0e1eeaafde2c782583b36b28ad0d8c77d3 # v1.2.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: wear/build/test-results/testDirectDebugUnitTest/*.xml,mobile/build/test-results/testDebugUnitTest/*.xml
+          files: wear/build/test-results/testDirectDebugUnitTest/*.xml,mobile/build/test-results/testDebugUnitTest/*.xml,immich-api/build/test-results/test/*.xml
       - name: Upload Test Reports on Failure
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -92,3 +94,4 @@ jobs:
           path: |
             wear/build/reports/tests/
             mobile/build/reports/tests/
+            immich-api/build/reports/tests/

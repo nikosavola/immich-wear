@@ -105,7 +105,11 @@ doesn't move `fi.nikosavola.immichwear` any closer to being published on Play.
    ```
 
 5. `release.yml` runs: builds both signed APKs and creates a GitHub Release for the tag with both
-   attached.
+   attached. `publish.yml` runs alongside it and publishes `fi.nikosavola:immich-api` to this repo's
+   GitHub Packages registry, versioned by the tag. GitHub Packages won't let an existing version be
+   overwritten, so a half-failed publish leaves that version in place needing a manual delete from
+   the package page before the same tag can be retried (`workflow_dispatch` re-runs publish.yml
+   alone, without re-cutting the GitHub Release).
 
 ## 6. Scope this pipeline does not cover
 

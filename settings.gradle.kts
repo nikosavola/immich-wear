@@ -27,4 +27,6 @@ rootProject.name = "ImmichWearOS"
 
 include(":wear")
 
+include(":immich-api")
+
 include(":mobile")

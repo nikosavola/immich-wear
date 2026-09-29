@@ -85,6 +85,31 @@ Your API key is encrypted at rest (AES/GCM via the Android Keystore) and never l
 watch except in requests to the Immich server address you configured. Nothing is collected,
 logged, or sent anywhere by this app's developer.
 
+## Published packages
+
+The Immich REST client the watch app uses (`:immich-api`) is also published standalone to GitHub Packages as
+`fi.nikosavola:immich-api`, one version per release tag. There is no official Immich JVM client, so this is meant to
+be usable on its own by anything else talking to an Immich server:
+
+```kotlin
+repositories {
+  maven {
+    url = uri("https://maven.pkg.github.com/nikosavola/immich-wear")
+    credentials {
+      // Classic PAT with read:packages. GitHub Packages rejects anonymous reads even of a public
+      // package, and doesn't accept fine-grained tokens at all.
+      username = System.getenv("GITHUB_ACTOR")
+      password = System.getenv("GITHUB_TOKEN")
+    }
+  }
+}
+
+dependencies { implementation("fi.nikosavola:immich-api:0.1.1") }
+```
+
+The artifact carries the same AGPL-3.0 license as this repository, which binds anything linking it too. Publishing
+runs from `.github/workflows/publish.yml` on a `v*` tag.
+
 ## Contributing
 
 See [CONTRIBUTING.md](.github/CONTRIBUTING.md) for development setup and guidelines, and
