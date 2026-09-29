@@ -77,6 +77,13 @@ compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-mani
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
+# Only immich-api (a plain Kotlin/JVM module, no Android APIs) applies this directly - every
+# Android module gets Kotlin from AGP's built-in support instead (see its own build.gradle.kts
+# comment). No version here (unlike every other plugin alias in this file): the root buildscript's
+# forced kotlin-gradle-plugin classpath dependency already puts this plugin on the classpath
+# unversioned, and redeclaring a version on top of that fails with "already on the classpath with
+# an unknown version, so compatibility cannot be checked".
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ktfmt = { id = "com.ncorti.ktfmt.gradle", version.ref = "ktfmt" }

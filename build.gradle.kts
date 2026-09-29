@@ -36,6 +36,9 @@ sonar {
       listOf(
           file("wear/build/reports/kover/reportDirectDebug.xml"),
           file("mobile/build/reports/kover/reportDebug.xml"),
+          // Plain Kotlin/JVM module (no Android variants), so its Kover task/report path drops the
+          // "Debug" suffix the two Android modules' variant-scoped ones have.
+          file("immich-api/build/reports/kover/report.xml"),
         )
         .joinToString(",") { it.absolutePath },
     )
@@ -105,6 +108,9 @@ tasks.register("formatAll") {
     ":wear:ktfmtFormatScripts",
     ":wear:ktfmtFormatKotlin",
     ":wear:ktlintFormat",
+    ":immich-api:ktfmtFormatScripts",
+    ":immich-api:ktfmtFormatKotlin",
+    ":immich-api:ktlintFormat",
     ":mobile:ktfmtFormatScripts",
     ":mobile:ktfmtFormatKotlin",
     ":mobile:ktlintFormat",
@@ -124,6 +130,13 @@ tasks.register("lintAll") {
     // "direct" only, matching the default flavor everything else here targets - see justfile.
     ":wear:lintDirectDebug",
     ":wear:verifyFdroidFlavorHasNoGoogleServices",
+    // No :immich-api:lintDebug - it's a plain Kotlin/JVM module, not an Android one, so there's no
+    // Android Lint task for it at all.
+    ":immich-api:ktfmtCheckScripts",
+    ":immich-api:ktfmtSourcesNotEmpty",
+    ":immich-api:ktfmtCheckKotlin",
+    ":immich-api:ktlintCheck",
+    ":immich-api:detekt",
     ":mobile:ktfmtCheckScripts",
     ":mobile:ktfmtSourcesNotEmpty",
     ":mobile:ktfmtCheckKotlin",

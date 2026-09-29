@@ -42,11 +42,12 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         # No plain `build` task exists at the root of this Android project (unlike the SonarQube
-        # docs' generic example), so build the app and run its tests explicitly before analysis.
-        # koverXmlReportDirectDebug/koverXmlReportDebug generates the coverage report
-        # build.gradle.kts's sonar.coverage.jacoco.xmlReportPaths points at - without running these
-        # here, Sonar finds no report and always shows 0% coverage, regardless of how much of the
-        # diff tests actually cover.
+        # docs' generic example), so build each module and run its tests explicitly before analysis.
+        # Every module listed in build.gradle.kts's sonar.coverage.jacoco.xmlReportPaths needs its
+        # own report task here: without one, Sonar finds no report for that module's files and always
+        # shows 0% coverage on them, regardless of how much of the diff tests actually cover.
+        # ci.yml's Codecov upload is a separate workflow and doesn't feed this one.
         run: |
           ./gradlew :wear:assembleDirectDebug :wear:testDirectDebugUnitTest :wear:koverXmlReportDirectDebug \
-            :mobile:assembleDebug :mobile:testDebugUnitTest :mobile:koverXmlReportDebug sonar --no-daemon
+            :mobile:assembleDebug :mobile:testDebugUnitTest :mobile:koverXmlReportDebug \
+            :immich-api:koverXmlReport sonar --no-daemon

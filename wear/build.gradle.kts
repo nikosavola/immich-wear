@@ -139,8 +139,13 @@ dependencies {
   implementation(libs.kotlinx.serialization.json)
 
   implementation(libs.retrofit)
-  implementation(libs.retrofit.converter.kotlinx.serialization)
   implementation(libs.okhttp)
+
+  // The Immich REST client (ImmichApi, the DTOs, createImmichClients) lives in its own module so it
+  // can also be published standalone - see ../immich-api/build.gradle.kts. It moved with its
+  // package names untouched, so nothing here needed an import change; the kotlinx-serialization
+  // converter it uses is now only declared there.
+  implementation(project(":immich-api"))
 
   implementation(libs.coil.compose)
   implementation(libs.coil.network.okhttp)

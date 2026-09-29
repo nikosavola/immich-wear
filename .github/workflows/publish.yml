@@ -1,0 +1,98 @@
+name: Publish
+# Publishes the :immich-api Maven artifact to GitHub Packages on a version tag. Kept separate from
+# release.yml rather than added as a job there: this needs the packages: write permission the APK
+# release job has no use for, and a failed publish should be re-runnable on its own without
+# re-cutting the GitHub Release.
+on:
+  push:
+    tags:
+      - 'v*'
+  # For exercising this workflow without cutting a release, and for retrying after a botched
+  # publish - GitHub Packages refuses to overwrite an existing version, so a half-uploaded one has
+  # to be deleted from the package page before the same version can be published again.
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release tag to re-publish, including the v (e.g. v0.1.1)'
+        required: true
+        type: string
+concurrency:
+  # Keyed on the release tag rather than github.ref, so a workflow_dispatch re-publish queues behind
+  # the tag push it is retrying instead of racing it: two concurrent uploads of one version would
+  # leave the loser's partial upload behind, which is exactly the state the registry then refuses to
+  # overwrite.
+  group: ${{ github.workflow }}-${{ inputs.version || github.ref_name }}
+  # Never cancel mid-publish: a cancelled run can leave a partially uploaded version behind, which
+  # the registry will then refuse to overwrite.
+  cancel-in-progress: false
+permissions: {}
+jobs:
+  publish:
+    name: Publish Libraries to GitHub Packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read # to check out the tagged commit
+      packages: write # to publish the artifact to GitHub Packages
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # On workflow_dispatch the default ref is the branch the run was started from, not the tag
+          # named in the input. Without this, retrying vX.Y.Z would build whatever the branch happens
+          # to contain and publish it under that tag's immutable version.
+          ref: ${{ inputs.version || github.ref }}
+          persist-credentials: false
+      - name: Set up Java JDK 21
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+      # Deliberately no cache: 'gradle' (same reasoning as release.yml: a Gradle cache shared across
+      # refs is a cache-poisoning surface, and this job publishes an artifact other people come to
+      # depend on) and no Set up Android SDK step: every task here is a plain Kotlin/JVM one, and
+      # AGP only needs a resolvable compileSdk once an Android task actually runs, so configuring
+      # :wear/:mobile alongside this publish is fine without the SDK. GitHub's ubuntu-latest images
+      # ship an SDK regardless, so that reasoning only matters if this job ever moves to a runner
+      # without one.
+      - name: Resolve the version to publish
+        id: version
+        env:
+          # Passed through the environment rather than interpolated straight into run: below, which
+          # is user-controlled text on the workflow_dispatch path.
+          DISPATCH_TAG: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          # No branch-name fallback: on a workflow_dispatch run GITHUB_REF_NAME is the branch, not a
+          # tag, so falling back would publish a version literally named "main".
+          tag="${DISPATCH_TAG:-$GITHUB_REF_NAME}"
+          # The dispatch input is required to be the tag rather than a bare version so that it spells
+          # the key above identically to a tag push's github.ref_name - that is what makes a re-publish
+          # queue behind the run it retries instead of racing it.
+          if [[ "$tag" != v* ]]; then
+            echo "::error::'$tag' must be the release tag, including its leading v (e.g. v0.1.1)" >&2
+            exit 1
+          fi
+          version="${tag#v}"
+          # Anything that isn't a release version is rejected up front, because the registry will not
+          # let an existing version be overwritten - so a stray v* tag like v-test, or a dispatch
+          # input of "v0.1" or "v0.1.1 " with a trailing space, would leave junk in the package's
+          # version list that can only be cleaned up by hand.
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?$ ]]; then
+            echo "::error::'$tag' is not a vX.Y.Z release tag - publish.yml only publishes released versions" >&2
+            exit 1
+          fi
+          echo "Publishing version $version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Publish to GitHub Packages
+        # :immich-api:test runs first on purpose: the registry will not let an existing version be
+        # overwritten, so an artifact that gets published broken can only be cleaned up by hand.
+        # Tests gate main's CI already, but a tag can point at any commit, so this is the last
+        # cheap check before an irreversible upload.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          ./gradlew :immich-api:test \
+            :immich-api:publishAllPublicationsToGitHubPackagesRepository \
+            -PreleaseVersion="$VERSION" --no-daemon
