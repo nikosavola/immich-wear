@@ -5,6 +5,7 @@
 [![Quality gate status](https://sonarcloud.io/api/project_badges/measure?project=nikosavola_immich-wear&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=nikosavola_immich-wear)
 [![License](https://img.shields.io/github/license/nikosavola/immich-wear)](LICENSE)
 [![ZeroVer](https://img.shields.io/badge/versioning-ZeroVer-orange)](https://0ver.org)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fnikosavola%2Fimmich-wear.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fnikosavola%2Fimmich-wear?ref=badge_shield)
 
 ______________________________________________________________________
 
@@ -126,3 +127,6 @@ so a 0.y bump can carry breaking changes.
 [GNU Affero General Public License v3.0](LICENSE). The Immich name and logo are not covered by
 this license - see [design/wearos-icon/NOTICE.md](design/wearos-icon/NOTICE.md) for how this
 project's icon relates to Immich's own branding.
+
+
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fnikosavola%2Fimmich-wear.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fnikosavola%2Fimmich-wear?ref=badge_large)
