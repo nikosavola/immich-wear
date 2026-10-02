@@ -35,6 +35,17 @@ jobs:
               exit 1
             fi
           done
+      # :wear's versionCode is a literal pinned at releaseNumber + 1000 (see
+      # wear/build.gradle.kts) rather than derived like :mobile's, so nothing in the Gradle
+      # config enforces the tie - catch a drifted pair here, before any build time is spent.
+      - name: Verify wear's versionCode matches releaseNumber + 1000
+        run: |
+          release_number=$(sed -n 's/^releaseNumber=//p' gradle.properties)
+          wear_code=$(grep -m1 -oE 'versionCode = [0-9]+' wear/build.gradle.kts | grep -oE '[0-9]+')
+          if [ "$wear_code" -ne "$((release_number + 1000))" ]; then
+            echo "::error::wear/build.gradle.kts has versionCode = $wear_code but releaseNumber = $release_number (expected $((release_number + 1000))) - keep them tied, see docs/RELEASING.md" >&2
+            exit 1
+          fi
       # wear/build.gradle.kts and mobile/build.gradle.kts silently fall back to debug signing
       # when RELEASE_STORE_FILE isn't set - deliberate for local dev, but here it would mean this
       # workflow "succeeds" while quietly publishing a debug-signed APK as a real GitHub Release.
