@@ -1,0 +1,167 @@
+name: F-Droid metadata check
+# Informational only, not a merge gate (continue-on-error below): this exercises fdroidserver's
+# own lint/scanner logic plus fdroiddata's own reference data, both of which can change upstream
+# independently of anything in this repo. F-Droid's own merge-request pipeline re-validates
+# everything for real at actual submission time.
+#
+# Known real limitation, not something this workflow can fix: fdroidserver's scanner matches
+# dependency-declaration lines with a regex anchored at the start of the line (after whitespace),
+# so it cannot see this repo's `"directImplementation"(...)`/`"playstoreImplementation"(...)`
+# Kotlin string-invoke syntax (used because a typed accessor doesn't exist for a newly
+# introduced flavor - see wear/build.gradle.kts's own comment on this) - confirmed empirically
+# by adding a control line and observing the scanner catch an unquoted `implementation(...)` call
+# right next to an unnoticed quoted one. This check can still catch a genuinely unconditional
+# (non-flavor-gated, unquoted) non-free dependency added anywhere - it just cannot verify that
+# flavor-based GMS exclusion specifically continues to work as changes are made.
+on:
+  push:
+    branches:
+      - main
+      - 'claude/**'
+  pull_request:
+    branches:
+      - main
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+permissions: {}
+jobs:
+  fdroid-check:
+    name: fdroid lint + scanner (fdroid flavor)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          # Full history, not the default shallow clone: this checkout doubles as the local
+          # Repo the scanner step below clones from, and once Builds grows a second (older)
+          # entry, fdroidserver needs that older commit to be present here.
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.x'
+      - name: Install fdroidserver
+        # Pinned version, not --only-binary :all:: fdroidserver only ships an sdist on PyPI (no
+        # wheel), confirmed by pip failing to find any binary distribution for it - so building
+        # from source is unavoidable here, not a choice.
+        run: pip install --quiet fdroidserver==2.4.5
+      - name: Check metadata versions match wear/build.gradle.kts
+        # Neither `fdroid lint` nor `fdroid scanner` cross-checks these against the actual Gradle
+        # config - a real release bump here with no matching metadata update would go unnoticed by
+        # both, and stay unnoticed indefinitely since this job would keep passing regardless. Uses
+        # the highest-versionCode Builds entry (not just the only one) so this keeps working once
+        # the metadata accumulates build history, and checks CurrentVersion/CurrentVersionCode too.
+        run: |
+          python3 -c "
+          import re, sys, yaml
+
+          with open('wear/build.gradle.kts') as f:
+              gradle = f.read()
+          gradle_name = re.search(r'versionName = \"([^\"]+)\"', gradle).group(1)
+          gradle_code = int(re.search(r'versionCode = (\d+)', gradle).group(1))
+
+          with open('metadata/fi.nikosavola.immichwear.yml') as f:
+              meta = yaml.safe_load(f)
+          latest_build = max(meta['Builds'], key=lambda b: b['versionCode'])
+
+          problems = []
+          for label, actual in (
+              ('CurrentVersion', meta.get('CurrentVersion')),
+              ('latest Builds versionName', latest_build.get('versionName')),
+          ):
+              if actual != gradle_name:
+                  problems.append(f'{label} is {actual!r}, wear/build.gradle.kts has {gradle_name!r}')
+          for label, actual in (
+              ('CurrentVersionCode', meta.get('CurrentVersionCode')),
+              ('latest Builds versionCode', latest_build.get('versionCode')),
+          ):
+              if actual != gradle_code:
+                  problems.append(f'{label} is {actual!r}, wear/build.gradle.kts has {gradle_code!r}')
+
+          for p in problems:
+              print(f'::error::{p} - update metadata/fi.nikosavola.immichwear.yml')
+          sys.exit(1 if problems else 0)
+          "
+      - name: Fetch F-Droid's categories/anti-features reference data
+        # fdroid lint validates Categories/AntiFeatures values against these files, which live in
+        # fdroiddata itself, not the fdroidserver package - sparse+shallow clone, just the config/
+        # directory (~20MB), not the whole metadata history.
+        run: |
+          git clone --quiet --depth 1 --filter=blob:none --sparse \
+            https://gitlab.com/fdroid/fdroiddata.git "$RUNNER_TEMP/fdroiddata-config"
+          git -C "$RUNNER_TEMP/fdroiddata-config" sparse-checkout set config
+      - name: Prepare a scratch fdroiddata-shaped check directory
+        # fdroid lint/scanner expect metadata/<appid>.yml and config/ relative to cwd, not a path
+        # you can point them at directly - build a throwaway directory shaped like fdroiddata.
+        # Repo: is pointed at this exact checkout (local path, not the GitHub URL) so the scanner
+        # clones locally and tests precisely the commit under test, not whatever main resolves to
+        # remotely at scan time. The grep guards fail loudly if either placeholder ever stops
+        # matching (a rename, a trailing slash, an edited placeholder) instead of the sed silently
+        # emitting the unchanged line and testing something other than what these comments promise.
+        run: |
+          mkdir -p "$RUNNER_TEMP/fdroid-check/metadata"
+          cp -r "$RUNNER_TEMP/fdroiddata-config/config" "$RUNNER_TEMP/fdroid-check/config"
+          grep -q 'commit: __CI_COMMIT_SHA__' metadata/fi.nikosavola.immichwear.yml
+          grep -q 'Repo: https://github.com/nikosavola/immich-wear' metadata/fi.nikosavola.immichwear.yml
+          sed -e "s|commit: __CI_COMMIT_SHA__|commit: $GITHUB_SHA|" \
+              -e "s|Repo: https://github.com/nikosavola/immich-wear|Repo: $GITHUB_WORKSPACE|" \
+              metadata/fi.nikosavola.immichwear.yml \
+              > "$RUNNER_TEMP/fdroid-check/metadata/fi.nikosavola.immichwear.yml"
+      - name: fdroid lint
+        working-directory: ${{ runner.temp }}/fdroid-check
+        run: fdroid lint fi.nikosavola.immichwear -v
+      - name: fdroid rewritemeta --list (informational)
+        # Not --format on the lint step above: the tracked file deliberately keeps explanatory
+        # comments and field ordering suited for reading, which fdroiddata's own stricter
+        # byte-exact format check would flag. This just surfaces what reformatting the real
+        # submission copy would need, without stripping comments from this CI-testing copy.
+        working-directory: ${{ runner.temp }}/fdroid-check
+        run: fdroid rewritemeta -l fi.nikosavola.immichwear || true
+      - name: fdroid scanner
+        working-directory: ${{ runner.temp }}/fdroid-check
+        # --exit-code is a no-op here: fdroidserver's scanner only wires it up for literal .apk
+        # file arguments, not appid-based scans (confirmed by reading scanner.py's main()) - the
+        # process exits 0 regardless of findings either way, so failure detection has to come from
+        # parsing --json output instead. infos (e.g. scandelete removals) are expected, not
+        # failures; only real errors/warnings should fail this step.
+        #
+        # A VCS/build exception during the appid-based scan (e.g. a checkout failure) is only
+        # logged to stderr, not recorded in --json output at all (confirmed by reading scanner.py:
+        # its BuildException/VCSException/general-exception handlers increment an internal counter
+        # and log a warning, but never touch json_output) - without the stderr check below, that
+        # kind of failure would silently produce {} and this step would wrongly report success.
+        #
+        # Don't also require the appid key to be present in the JSON: scanner.py only adds an
+        # appid entry to json_output when its MessageStore has at least one error/warning/info
+        # (confirmed by reading scanner.py) - a fully clean scan with nothing to report (not even
+        # a scandelete/gradlew-removal info) legitimately produces {}, which isn't a failure.
+        #
+        # An unused scanignore/scandelete path (e.g. if `mobile` stops matching) is also only
+        # logged via logging.error() and counted internally - never added to the MessageStore
+        # either, so it's invisible to the JSON check too (confirmed by reading scanner.py).
+        run: |
+          fdroid scanner fi.nikosavola.immichwear -v -r --json \
+            > scanner-output.json 2> scanner-stderr.log
+          cat scanner-stderr.log
+          if grep -qE 'Could not scan app|VCS error while scanning app|Unused scanignore path|Unused scandelete path' scanner-stderr.log; then
+            echo "::error::fdroid scanner failed to complete a scan - see stderr above"
+            exit 1
+          fi
+          python3 -c "
+          import json, sys
+          with open('scanner-output.json') as f:
+              data = json.load(f)
+          problems = 0
+          for appid, builds in data.items():
+              for vercode, result in builds.items():
+                  for level in ('errors', 'warnings'):
+                      for msg, path in result.get(level, []):
+                          print(f'{level}: {msg} at {path}')
+                          problems += 1
+          sys.exit(1 if problems else 0)
+          "
