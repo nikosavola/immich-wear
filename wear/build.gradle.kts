@@ -33,9 +33,13 @@ android {
     applicationId = "fi.nikosavola.immichwear"
     minSdk = 30
     targetSdk = 36
-    // +1000 offset keeps this distinct from :mobile's versionCode - see gradle.properties.
-    versionCode = property("releaseNumber").toString().toInt() + 1000
-    versionName = "0.1.2"
+    // A literal, not derived from releaseNumber: F-Droid's update checker greps the build file
+    // for a versionCode it can parse, and fdroidserver's regex only matches literal integers -
+    // an expression here makes its checkupdates job fail, breaking auto-update. Keep it at
+    // releaseNumber + 1000 (the offset keeps it distinct from :mobile's versionCode, see
+    // gradle.properties); release.yml verifies that tie on every tag push.
+    versionCode = 1004
+    versionName = "0.1.3"
   }
 
   // "direct" keeps on-watch server URL/API key entry (Settings) for anyone building/sideloading

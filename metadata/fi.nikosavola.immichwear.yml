@@ -1,0 +1,84 @@
+# F-Droid build recipe for :wear's GMS-free "fdroid" flavor (see wear/build.gradle.kts).
+#
+# This is a CI-testing copy, not the literal content for the fdroiddata merge request:
+# `commit` is a placeholder .github/workflows/fdroid.yml substitutes with the commit under test,
+# and the version fields track this repo's current unreleased state rather than a real tagged
+# release. Update both once a real release tag exists and this is actually submitted upstream.
+Categories:
+  - Gallery
+  - Multimedia
+License: AGPL-3.0-only
+# Unlike ClockifyWearOS (NonFreeNet there), no AntiFeatures here: Immich itself is FOSS and the
+# app talks only to the user's own self-hosted server, so there's no proprietary network service
+# anywhere in the picture.
+AuthorName: Niko Savola
+# Explicit override of the manifest label ("Immich"): F-Droid already lists the official Immich
+# app under that exact name, and the upstream fastlane title.txt ("Immich Wear") only covers the
+# en-US locale - this keeps every other locale distinct too.
+Name: Immich Wear
+SourceCode: https://github.com/nikosavola/immich-wear
+IssueTracker: https://github.com/nikosavola/immich-wear/issues
+Changelog: https://github.com/nikosavola/immich-wear/releases
+Liberapay: nikosavola
+
+# The manifest's android:label - kept in sync automatically by fdroid checkupdates, so it must
+# stay the literal label, not the listing name above.
+AutoName: Immich
+
+# "Ignore" stops fdroid checkupdates from auto-fetching AutoName (and rewriting this file, which
+# its fdroiddata CI job treats as a failure): without it, fdroidserver walks the repo's modules
+# alphabetically and takes the first whose applicationId matches this appid - and :mobile shares
+# :wear's exact applicationId (the Wear OS Data Layer requires it), so "Immich Wear Login"
+# (the phone app's label) would win over "Immich". ClockifyWearOS dodged this with a .fdroid
+# applicationIdSuffix; this repo deliberately has no suffix (see wear/build.gradle.kts).
+UpdateCheckName: Ignore
+
+RepoType: git
+Repo: https://github.com/nikosavola/immich-wear
+
+Builds:
+  - versionName: '0.1.3'
+    versionCode: 1004
+    commit: __CI_COMMIT_SHA__
+    subdir: wear
+    gradle:
+      - fdroid
+    # mobile/ has real, unconditional GMS dependencies (play-services-wearable for the companion
+    # login) the scanner would flag, even though this build never touches that module -
+    # scandelete only, not also scanignore: the scanner checks scanignore first and returns
+    # early, so a scandelete entry for the same path would never register as used, aborting the
+    # build with an "Unused scandelete path" error.
+    scandelete:
+      - mobile
+    # immich-api/build.gradle.kts declares a *publishing* repository (GitHub Packages, where that
+    # module's jar is uploaded at release time). fdroidserver's scanner checks every maven repo
+    # URL it finds in any *.gradle.kts against its own known-repos allowlist without
+    # distinguishing a publishing target from a dependency source, so it reports it as an
+    # "unknown maven repo". The app never resolves anything from it, and settings.gradle.kts's
+    # FAIL_ON_PROJECT_REPOS already bans project-level dependency repositories outright.
+    #
+    # scanignore rather than moving the URL out of the build file: the scanner's MAVEN_URL_REGEX
+    # captures whatever expression follows `url =`, so any indirection (a gradle.properties value,
+    # a helper function) is flagged too - it just changes the text of the error.
+    #
+    # This does blind the scanner to that one file, not to the module. Its dependencies are
+    # declared through version-catalog accessors (`libs.retrofit`), which the scanner's
+    # line-anchored regex cannot read in any file (see the note below), and F-Droid's own APK
+    # scan on its build server remains the backstop. Narrow on purpose: a bare `immich-api`
+    # entry would also hide the module's sources.
+    scanignore:
+      - immich-api/build.gradle.kts
+
+# No scanignore entry for wear/build.gradle.kts's own play-only dependencies (e.g.
+# play-services-wearable) - but not because flavor-based exclusion was proven to work. The
+# scanner's dependency-line regex is anchored at the start of the line and cannot match this
+# repo's `"directImplementation"(...)`/`"playstoreImplementation"(...)` Kotlin string-invoke
+# syntax at all (used because a typed accessor doesn't exist for a newly introduced flavor -
+# see wear/build.gradle.kts), so it's blind to that line regardless of which flavor is being
+# scanned, not correctly excluding it because of flavor scoping. A real GMS-flagging APK
+# scan on F-Droid's own build server is the actual backstop for that dependency; this check
+# only reliably catches an unconditional, unquoted non-free dependency added elsewhere.
+AutoUpdateMode: Version
+UpdateCheckMode: Tags
+CurrentVersion: 0.1.3
+CurrentVersionCode: 1004

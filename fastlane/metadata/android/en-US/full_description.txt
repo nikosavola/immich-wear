@@ -1,0 +1,7 @@
+An unofficial Immich client for Wear OS. Browse your recent photos, albums, favorites, and "on this day" memories, favorite an asset, and glance at a random photo from a tile, all from your wrist. Not affiliated with or endorsed by the Immich project.
+
+Requires a self-hosted Immich server reachable from the watch, and an API key for it (Account settings > API Keys in the Immich web UI).
+
+This build has no Google Play Services and no phone companion pairing feature - sign in by entering your Immich server URL and API key directly on the watch.
+
+Your API key is encrypted at rest (AES/GCM via the Android Keystore) and never leaves the watch except in requests to the Immich server address you configured. Nothing is collected, logged, or sent anywhere by this app's developer.

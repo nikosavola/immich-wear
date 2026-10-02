@@ -92,19 +92,24 @@ doesn't move `fi.nikosavola.immichwear` any closer to being published on Play.
 
 ## 5. Cutting a release
 
-1. Bump `releaseNumber` in `gradle.properties` (both `:wear` and `:mobile` derive their own
-   `versionCode` from it with different offsets - see the comments in their `build.gradle.kts`).
+1. Bump `releaseNumber` in `gradle.properties` (`:mobile` derives its `versionCode` from it - see
+   the comments in `mobile/build.gradle.kts`).
 2. Bump `versionName` in both `wear/build.gradle.kts` and `mobile/build.gradle.kts` - these are
    independent literals, not derived from anything, and must be bumped in both places by hand.
-3. Commit that change.
-4. Tag it `vX.Y.Z` (matching the `push: tags: 'v*'` trigger) and push the tag:
+3. Bump `:wear`'s literal `versionCode` in `wear/build.gradle.kts` to the new `releaseNumber +
+   1000`. It's a literal rather than derived from `releaseNumber` because F-Droid's update
+   checker (`fdroid checkupdates`) can only parse a literal integer out of the build file, and a
+   broken parse fails the fdroiddata CI - see the comment in `wear/build.gradle.kts`.
+   `release.yml` fails the tag push loudly if the two drift apart.
+4. Commit that change.
+5. Tag it `vX.Y.Z` (matching the `push: tags: 'v*'` trigger) and push the tag:
 
    ```bash
    git tag v1.0.0
    git push origin v1.0.0
    ```
 
-5. `release.yml` runs: builds both signed APKs and creates a GitHub Release for the tag with both
+6. `release.yml` runs: builds both signed APKs and creates a GitHub Release for the tag with both
    attached. `publish.yml` runs alongside it and publishes `fi.nikosavola:immich-api` to this repo's
    GitHub Packages registry, versioned by the tag. GitHub Packages won't let an existing version be
    overwritten, so a half-failed publish leaves that version in place needing a manual delete from
@@ -115,7 +120,11 @@ doesn't move `fi.nikosavola.immichwear` any closer to being published on Play.
 
 - **Play Store publishing**: not wired up here. `playstore` is a separate flavor with its own
   distribution path (Play Console review) - it isn't built by `release.yml`.
-- **F-Droid distribution**: F-Droid builds and signs apps from source using its own
-  infrastructure, entirely outside this repo's CI - nothing here is relevant to that path.
+- **F-Droid distribution**: F-Droid builds and signs the `fdroid` flavor from source tags using
+  its own infrastructure - the release.yml artifacts above are irrelevant to it. The fdroiddata
+  metadata pins each `Builds:` entry to a tag commit and auto-updates via
+  `UpdateCheckMode: Tags`, so a normal `vX.Y.Z` tag push is all a release needs. Until the
+  fdroiddata merge request is merged, though, new versions must be added to that MR by hand
+  (its CI runs `fdroid checkupdates`, which fails if `CurrentVersion` lags the newest tag).
 - **AAB / app bundle**: not built here, since GitHub Releases distributes a plain installable APK,
   not a Play-specific bundle format.
