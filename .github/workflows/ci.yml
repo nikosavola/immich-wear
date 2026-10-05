@@ -79,7 +79,10 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: wear/build/reports/kover/reportDirectDebug.xml,mobile/build/reports/kover/reportDebug.xml,immich-api/build/reports/kover/report.xml
-          fail_ci_if_error: true
+          # The upload is a reporting side channel, not a gate: codecov.io's CDN has full
+          # outages (SSL handshake failure from every runner for hours), which must not
+          # block otherwise-green PRs. The tests themselves already failed the job above.
+          fail_ci_if_error: false
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
         uses: codecov/test-results-action@0fa95f0e1eeaafde2c782583b36b28ad0d8c77d3 # v1.2.1
