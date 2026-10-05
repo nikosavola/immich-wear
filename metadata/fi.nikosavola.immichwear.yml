@@ -43,6 +43,21 @@ Builds:
     subdir: wear
     gradle:
       - fdroid
+    # immich-api/build.gradle.kts declares a *publishing* repository (GitHub Packages, where that
+    # module's jar is uploaded at release time). fdroidserver's scanner checks every maven repo URL
+    # it finds in any *.gradle.kts against its own known-repos allowlist without distinguishing a
+    # publishing target from a dependency source, so it reports it as an "unknown maven repo". The
+    # app never resolves anything from it, and settings.gradle.kts's FAIL_ON_PROJECT_REPOS already
+    # bans project-level dependency repositories outright.
+    #
+    # Per fdroid review (!50923), not a scanignore: that would blind the scanner to the whole
+    # file. The prebuild seds just the URL line out before the scan instead - fdroid build and
+    # the standalone `fdroid scanner` both run prebuild first, so fdroid.yml's scanner step
+    # exercises this too. Deleting the line leaves the publishing block's name/credentials
+    # intact and valid Kotlin, since publishing tasks are never invoked during a build -
+    # verified with a full :wear:assembleFdroidRelease after the sed. The sed runs with cwd =
+    # the wear/ subdir, hence the ../ path.
+    prebuild: sed -i '/maven.pkg.github/d' ../immich-api/build.gradle.kts
     # mobile/ has real, unconditional GMS dependencies (play-services-wearable for the companion
     # login) the scanner would flag, even though this build never touches that module -
     # scandelete only, not also scanignore: the scanner checks scanignore first and returns
@@ -50,34 +65,17 @@ Builds:
     # build with an "Unused scandelete path" error.
     scandelete:
       - mobile
-    # immich-api/build.gradle.kts declares a *publishing* repository (GitHub Packages, where that
-    # module's jar is uploaded at release time). fdroidserver's scanner checks every maven repo
-    # URL it finds in any *.gradle.kts against its own known-repos allowlist without
-    # distinguishing a publishing target from a dependency source, so it reports it as an
-    # "unknown maven repo". The app never resolves anything from it, and settings.gradle.kts's
-    # FAIL_ON_PROJECT_REPOS already bans project-level dependency repositories outright.
-    #
-    # scanignore rather than moving the URL out of the build file: the scanner's MAVEN_URL_REGEX
-    # captures whatever expression follows `url =`, so any indirection (a gradle.properties value,
-    # a helper function) is flagged too - it just changes the text of the error.
-    #
-    # This does blind the scanner to that one file, not to the module. Its dependencies are
-    # declared through version-catalog accessors (`libs.retrofit`), which the scanner's
-    # line-anchored regex cannot read in any file (see the note below), and F-Droid's own APK
-    # scan on its build server remains the backstop. Narrow on purpose: a bare `immich-api`
-    # entry would also hide the module's sources.
-    scanignore:
-      - immich-api/build.gradle.kts
 
 # No scanignore entry for wear/build.gradle.kts's own play-only dependencies (e.g.
-# play-services-wearable) - but not because flavor-based exclusion was proven to work. The
-# scanner's dependency-line regex is anchored at the start of the line and cannot match this
-# repo's `"directImplementation"(...)`/`"playstoreImplementation"(...)` Kotlin string-invoke
-# syntax at all (used because a typed accessor doesn't exist for a newly introduced flavor -
-# see wear/build.gradle.kts), so it's blind to that line regardless of which flavor is being
-# scanned, not correctly excluding it because of flavor scoping. A real GMS-flagging APK
-# scan on F-Droid's own build server is the actual backstop for that dependency; this check
-# only reliably catches an unconditional, unquoted non-free dependency added elsewhere.
+# play-services-wearable) either - but not because flavor-based exclusion was proven to work.
+# The scanner's dependency-line regex is anchored at the start of the line and cannot match
+# this repo's `"directImplementation"(...)`/`"playstoreImplementation"(...)` Kotlin
+# string-invoke syntax at all (used because a typed accessor doesn't exist for a newly
+# introduced flavor - see wear/build.gradle.kts), so it's blind to that line regardless of
+# which flavor is being scanned, not correctly excluding it because of flavor scoping. A real
+# GMS-flagging APK scan on F-Droid's own build server is the actual backstop for that
+# dependency; this check only reliably catches an unconditional, unquoted non-free dependency
+# added elsewhere.
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
 CurrentVersion: 0.1.3
