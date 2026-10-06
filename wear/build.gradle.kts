@@ -38,8 +38,8 @@ android {
     // an expression here makes its checkupdates job fail, breaking auto-update. Keep it at
     // releaseNumber + 1000 (the offset keeps it distinct from :mobile's versionCode, see
     // gradle.properties); release.yml verifies that tie on every tag push.
-    versionCode = 1004
-    versionName = "0.1.3"
+    versionCode = 1005
+    versionName = "0.1.4"
   }
 
   // "direct" keeps on-watch server URL/API key entry (Settings) for anyone building/sideloading

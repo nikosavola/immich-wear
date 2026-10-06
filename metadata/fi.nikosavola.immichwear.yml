@@ -37,8 +37,8 @@ RepoType: git
 Repo: https://github.com/nikosavola/immich-wear
 
 Builds:
-  - versionName: '0.1.3'
-    versionCode: 1004
+  - versionName: '0.1.4'
+    versionCode: 1005
     commit: __CI_COMMIT_SHA__
     subdir: wear
     gradle:
@@ -78,5 +78,5 @@ Builds:
 # added elsewhere.
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
-CurrentVersion: 0.1.3
-CurrentVersionCode: 1004
+CurrentVersion: 0.1.4
+CurrentVersionCode: 1005
