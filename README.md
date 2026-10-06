@@ -124,5 +124,5 @@ so a 0.y bump can carry breaking changes.
 ## License
 
 [GNU Affero General Public License v3.0](LICENSE). The Immich name and logo are not covered by
-this license - see [design/wearos-icon/NOTICE.md](design/wearos-icon/NOTICE.md) for how this
-project's icon relates to Immich's own branding.
+this license. This project's icon is original artwork, see
+[design/wearos-icon/NOTICE.md](design/wearos-icon/NOTICE.md).
