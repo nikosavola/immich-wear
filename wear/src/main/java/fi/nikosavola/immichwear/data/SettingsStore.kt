@@ -46,11 +46,15 @@ class SettingsStore(
 
   @Volatile private var cachedApiKey: String? = null
 
+  // Last successful (ciphertext, plaintext) pair. Keystore decrypt is an IPC, and every request
+  // re-reads settings. Failures are never stored, so a bad value is retried each time.
+  @Volatile private var lastDecrypted: Pair<String, String>? = null
+
   val settings: Flow<Settings> =
     dataStore.data.map { prefs ->
       Settings(
           serverUrl = prefs[serverUrlKey],
-          apiKey = prefs[apiKeyKey]?.let(apiKeyCipher::decrypt),
+          apiKey = prefs[apiKeyKey]?.let(::decryptMemoized),
           email = prefs[emailKey],
         )
         .also {
@@ -74,6 +78,7 @@ class SettingsStore(
 
   suspend fun setApiKey(apiKey: String?) {
     cachedApiKey = apiKey
+    lastDecrypted = null
     setOrRemove(apiKeyKey, apiKey?.let(apiKeyCipher::encrypt))
   }
 
@@ -83,7 +88,14 @@ class SettingsStore(
   suspend fun clear() {
     cachedServerUrl = null
     cachedApiKey = null
+    lastDecrypted = null
     dataStore.edit { it.clear() }
+  }
+
+  private fun decryptMemoized(ciphertext: String): String? {
+    val last = lastDecrypted
+    if (last != null && last.first == ciphertext) return last.second
+    return apiKeyCipher.decrypt(ciphertext)?.also { lastDecrypted = ciphertext to it }
   }
 
   private suspend fun setOrRemove(key: Preferences.Key<String>, value: String?) {

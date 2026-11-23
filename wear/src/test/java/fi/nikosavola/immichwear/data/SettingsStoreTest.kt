@@ -3,6 +3,7 @@ package fi.nikosavola.immichwear.data
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -131,5 +132,56 @@ class SettingsStoreTest {
     assertEquals("saved-key", restarted.currentSettings().apiKey)
     assertEquals("saved-key", restarted.apiKeySupplier())
     assertEquals("https://immich.example.com/", restarted.serverUrlSupplier())
+  }
+
+  @Test
+  fun `unchanged api key is decrypted once across repeated reads`() = runTest {
+    val cipher = FakeApiKeyCipher()
+    val store = SettingsStore(dataStore, cipher)
+    store.setApiKey("key-1")
+
+    repeat(5) { assertEquals("key-1", store.currentSettings().apiKey) }
+
+    assertEquals(1, cipher.decryptCalls)
+  }
+
+  @Test
+  fun `changing the api key decrypts the new value`() = runTest {
+    val cipher = FakeApiKeyCipher()
+    val store = SettingsStore(dataStore, cipher)
+    store.setApiKey("key-1")
+    assertEquals("key-1", store.currentSettings().apiKey)
+
+    store.setApiKey("key-2")
+
+    assertEquals("key-2", store.currentSettings().apiKey)
+    assertEquals("key-2", store.currentSettings().apiKey)
+    assertEquals(2, cipher.decryptCalls)
+  }
+
+  @Test
+  fun `clear drops the memoized key and a later key is decrypted`() = runTest {
+    val cipher = FakeApiKeyCipher()
+    val store = SettingsStore(dataStore, cipher)
+    store.setApiKey("key-1")
+    assertEquals("key-1", store.currentSettings().apiKey)
+
+    store.clear()
+    assertNull(store.currentSettings().apiKey)
+    store.setApiKey("key-1")
+
+    assertEquals("key-1", store.currentSettings().apiKey)
+    assertEquals(2, cipher.decryptCalls)
+  }
+
+  @Test
+  fun `failed decrypt is not memoized and is retried`() = runTest {
+    val cipher = FakeApiKeyCipher()
+    val store = SettingsStore(dataStore, cipher)
+    dataStore.edit { it[stringPreferencesKey("api_key")] = "garbage" }
+
+    repeat(3) { assertNull(store.currentSettings().apiKey) }
+
+    assertEquals(3, cipher.decryptCalls)
   }
 }
