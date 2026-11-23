@@ -7,9 +7,12 @@ import fi.nikosavola.immichwear.data.ImmichResult
 import fi.nikosavola.immichwear.data.TimelinePage
 import fi.nikosavola.immichwear.data.api.dto.AssetDto
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class AssetDetailViewModel(
@@ -19,6 +22,7 @@ class AssetDetailViewModel(
 ) : ViewModel() {
   private val mutableUiState = MutableStateFlow<AssetDetailUiState>(AssetDetailUiState.Loading)
   val uiState: StateFlow<AssetDetailUiState> = mutableUiState.asStateFlow()
+  private val toggledIds = mutableSetOf<String>()
 
   init {
     load()
@@ -26,7 +30,7 @@ class AssetDetailViewModel(
 
   fun load(): Job = viewModelScope.launch {
     mutableUiState.value = AssetDetailUiState.Loading
-    mutableUiState.value = locateAsset()
+    locateAsset()
   }
 
   // Fetches the caller's grid's first page to rebuild the sibling list and find assetId's
@@ -34,38 +38,51 @@ class AssetDetailViewModel(
   // opened was already visible in that grid, so it's on this first page unless the server's list
   // changed underneath us since the grid loaded - in which case this falls back to fetching just
   // this one asset, disabling paging, rather than re-querying further pages to keep searching.
-  private suspend fun locateAsset(): AssetDetailUiState {
+  //
+  // The search/metadata query that finds siblings never carries exifInfo (only GET /assets/{id}
+  // does), so the opened asset is fetched too. Both requests start together: the pager shows as
+  // soon as the list arrives and EXIF is merged in afterwards. The single fetch doubles as the
+  // fallback, so it is never requested twice.
+  private suspend fun locateAsset(): Unit = coroutineScope {
+    val single = async { repository.asset(assetId) }
     val firstPage = fetchPage(null)
-    if (firstPage is ImmichResult.Success) {
-      val index = firstPage.value.items.indexOfFirst { it.id == assetId }
-      if (index >= 0) {
-        return AssetDetailUiState.Loaded(
-          // The search/metadata query that finds siblings for paging never carries exifInfo (only
-          // GET /assets/{id} does) - enrich just the opened asset with a follow-up fetch so the
-          // details panel has EXIF to show. Best-effort: on failure this just keeps the plain
-          // entry from the list, same as this class's other silent fallbacks.
-          assets = withExifInfo(firstPage.value.items, index, assetId),
+    val index =
+      (firstPage as? ImmichResult.Success)?.value?.items?.indexOfFirst { it.id == assetId } ?: -1
+    if (firstPage is ImmichResult.Success && index >= 0) {
+      mutableUiState.value =
+        AssetDetailUiState.Loaded(
+          assets = firstPage.value.items,
           currentIndex = index,
           nextPage = firstPage.value.nextPage,
         )
-      }
-    }
-    return when (val single = repository.asset(assetId)) {
-      is ImmichResult.Success ->
-        AssetDetailUiState.Loaded(assets = listOf(single.value), currentIndex = 0)
-      is ImmichResult.Failure -> AssetDetailUiState.Error(single.error)
+      // Best-effort: on failure the plain list entry stays.
+      (single.await() as? ImmichResult.Success)?.let { mergeExif(it.value) }
+    } else {
+      mutableUiState.value =
+        when (val result = single.await()) {
+          is ImmichResult.Success ->
+            AssetDetailUiState.Loaded(assets = listOf(result.value), currentIndex = 0)
+          is ImmichResult.Failure -> AssetDetailUiState.Error(result.error)
+        }
     }
   }
 
-  private suspend fun withExifInfo(
-    assets: List<AssetDto>,
-    index: Int,
-    assetId: String,
-  ): List<AssetDto> =
-    when (val result = repository.asset(assetId)) {
-      is ImmichResult.Success -> assets.toMutableList().apply { set(index, result.value) }
-      is ImmichResult.Failure -> assets
+  // Matches by id because the user may have paged, or loaded more siblings, while this was in
+  // flight. Does nothing once the state has left Loaded, so a late result can't undo an error.
+  private fun mergeExif(detailed: AssetDto) {
+    updateLoaded { state ->
+      state.copy(
+        assets =
+          state.assets.map { item ->
+            when {
+              item.id != detailed.id -> item
+              detailed.id in toggledIds -> detailed.copy(isFavorite = item.isFavorite)
+              else -> detailed
+            }
+          }
+      )
     }
+  }
 
   /**
    * Called whenever the sibling pager settles on a new page, so [AssetDetailUiState.Loaded.asset]
@@ -75,24 +92,21 @@ class AssetDetailViewModel(
   fun onPageSettled(index: Int): Job = viewModelScope.launch {
     val state = mutableUiState.value
     if (state is AssetDetailUiState.Loaded) {
-      mutableUiState.value = state.copy(currentIndex = index)
+      updateLoaded { it.copy(currentIndex = index) }
       if (index == state.assets.lastIndex && state.nextPage != null && !state.isLoadingMore) {
-        mutableUiState.value = state.copy(currentIndex = index, isLoadingMore = true)
-        mutableUiState.value =
-          when (val result = fetchPage(state.nextPage)) {
-            is ImmichResult.Success -> {
-              val merged = (state.assets + result.value.items).distinctBy { it.id }
-              state.copy(
-                currentIndex = index,
-                assets = merged,
+        updateLoaded { it.copy(isLoadingMore = true) }
+        val result = fetchPage(state.nextPage)
+        updateLoaded { current ->
+          when (result) {
+            is ImmichResult.Success ->
+              current.copy(
+                assets = (current.assets + result.value.items).distinctBy { it.id },
                 nextPage = result.value.nextPage,
                 isLoadingMore = false,
               )
-            }
-            is ImmichResult.Failure -> {
-              state.copy(currentIndex = index, isLoadingMore = false, nextPage = null)
-            }
+            is ImmichResult.Failure -> current.copy(isLoadingMore = false, nextPage = null)
           }
+        }
       }
     }
   }
@@ -107,19 +121,24 @@ class AssetDetailViewModel(
     if (state is AssetDetailUiState.Loaded && !state.isTogglingFavorite) {
       val asset = state.asset
       val newValue = !asset.isFavorite
-      mutableUiState.value = state.copy(isTogglingFavorite = true)
-      mutableUiState.value =
-        when (repository.setFavorite(asset.id, newValue)) {
-          is ImmichResult.Success ->
-            state.copy(
-              assets =
-                state.assets.mapIndexed { index, item ->
-                  if (index == state.currentIndex) item.copy(isFavorite = newValue) else item
-                },
-              isTogglingFavorite = false,
-            )
-          is ImmichResult.Failure -> state.copy(isTogglingFavorite = false)
-        }
+      updateLoaded { it.copy(isTogglingFavorite = true) }
+      val succeeded = repository.setFavorite(asset.id, newValue) is ImmichResult.Success
+      if (succeeded) toggledIds.add(asset.id)
+      updateLoaded { it.withFavorite(asset.id, newValue.takeIf { succeeded }) }
+    }
+  }
+
+  private fun AssetDetailUiState.Loaded.withFavorite(id: String, value: Boolean?) =
+    copy(
+      assets = assets.map { if (it.id == id && value != null) it.copy(isFavorite = value) else it },
+      isTogglingFavorite = false,
+    )
+
+  // Applies to whatever state is current rather than a snapshot taken before a suspension point,
+  // so a concurrent EXIF merge or favorite toggle isn't overwritten by a stale copy.
+  private fun updateLoaded(transform: (AssetDetailUiState.Loaded) -> AssetDetailUiState.Loaded) {
+    mutableUiState.update { state ->
+      if (state is AssetDetailUiState.Loaded) transform(state) else state
     }
   }
 }
