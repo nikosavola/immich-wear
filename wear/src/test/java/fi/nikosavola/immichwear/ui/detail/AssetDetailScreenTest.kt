@@ -17,20 +17,28 @@ import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.swipeUp
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.test.core.app.ApplicationProvider
+import coil3.ImageLoader
+import coil3.SingletonImageLoader
+import coil3.annotation.DelicateCoilApi
 import fi.nikosavola.immichwear.R
 import fi.nikosavola.immichwear.data.FakeApiKeyCipher
 import fi.nikosavola.immichwear.data.ImmichRepository
 import fi.nikosavola.immichwear.data.ImmichResult
 import fi.nikosavola.immichwear.data.SettingsStore
 import fi.nikosavola.immichwear.data.TimelinePage
+import fi.nikosavola.immichwear.data.api.AssetThumbnailSize
 import fi.nikosavola.immichwear.data.api.createImmichClients
 import fi.nikosavola.immichwear.data.api.dto.AssetDto
 import fi.nikosavola.immichwear.data.api.dto.AssetTypeEnum
+import fi.nikosavola.immichwear.data.api.thumbnailUrl
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -48,6 +56,7 @@ private val noSiblings: suspend (Int?) -> ImmichResult<TimelinePage> = {
   ImmichResult.Success(TimelinePage(items = emptyList(), nextPage = null))
 }
 
+@OptIn(DelicateCoilApi::class)
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class AssetDetailScreenTest {
@@ -58,9 +67,16 @@ class AssetDetailScreenTest {
   private lateinit var server: MockWebServer
   private lateinit var settingsStore: SettingsStore
   private lateinit var repository: ImmichRepository
+  private val imageFetcher = RecordingFetcherFactory()
 
   @Before
   fun setUp() {
+    // Keeps image loads off the network and lets tests see which URLs Coil asked for.
+    SingletonImageLoader.setUnsafe(
+      ImageLoader.Builder(ApplicationProvider.getApplicationContext<Context>())
+        .components { add(imageFetcher) }
+        .build()
+    )
     server = MockWebServer()
     server.start()
     settingsStore =
@@ -84,6 +100,7 @@ class AssetDetailScreenTest {
 
   @After
   fun tearDown() {
+    SingletonImageLoader.reset()
     server.shutdown()
   }
 
@@ -275,5 +292,68 @@ class AssetDetailScreenTest {
     composeRule.onNodeWithContentDescription("a1.jpg").performTouchInput { swipeUp() }
 
     waitForContentDescription("a1.jpg")
+  }
+
+  private fun previewUrl(id: String) = thumbnailUrl(id, AssetThumbnailSize.PREVIEW)
+
+  private fun waitForFetch(url: String) {
+    composeRule.waitUntil(timeoutMillis = WAIT_TIMEOUT_MS) { url in imageFetcher.urls }
+  }
+
+  private fun viewModelFor(vararg siblings: AssetDto): AssetDetailViewModel {
+    val fetch: suspend (Int?) -> ImmichResult<TimelinePage> = {
+      ImmichResult.Success(TimelinePage(items = siblings.toList(), nextPage = null))
+    }
+    server.enqueue(MockResponse().setBody(assetJson())) // exif-enrichment GET for the found asset
+    return AssetDetailViewModel(repository, "a1", fetch)
+  }
+
+  @Test
+  fun `once the current preview is in, only the next asset's preview is prefetched`() {
+    val viewModel = viewModelFor(asset("a1"), asset("a2"), asset("a3"))
+
+    composeRule.setContent { AssetDetailScreen(viewModel = viewModel, onNavigateToSettings = {}) }
+    waitForFetch(previewUrl("a2"))
+    composeRule.waitForIdle()
+
+    assertEquals(listOf(previewUrl("a1"), previewUrl("a2")), imageFetcher.urls)
+  }
+
+  @Test
+  fun `the next preview is not requested while the current one is still loading`() {
+    val gate = CompletableDeferred<Unit>()
+    imageFetcher.gates[previewUrl("a1")] = gate
+    val viewModel = viewModelFor(asset("a1"), asset("a2"))
+
+    composeRule.setContent { AssetDetailScreen(viewModel = viewModel, onNavigateToSettings = {}) }
+    waitForFetch(previewUrl("a1"))
+    composeRule.waitForIdle()
+    assertFalse(previewUrl("a2") in imageFetcher.urls)
+
+    gate.complete(Unit)
+    waitForFetch(previewUrl("a2"))
+  }
+
+  @Test
+  fun `a following video is not prefetched`() {
+    val video = asset("a2").copy(type = AssetTypeEnum.VIDEO)
+    val viewModel = viewModelFor(asset("a1"), video)
+
+    composeRule.setContent { AssetDetailScreen(viewModel = viewModel, onNavigateToSettings = {}) }
+    waitForFetch(previewUrl("a1"))
+    composeRule.waitForIdle()
+
+    assertTrue(previewUrl("a2") !in imageFetcher.urls)
+  }
+
+  @Test
+  fun `swiping on prefetches the preview after the newly settled page`() {
+    val viewModel = viewModelFor(asset("a1"), asset("a2"), asset("a3"))
+
+    composeRule.setContent { AssetDetailScreen(viewModel = viewModel, onNavigateToSettings = {}) }
+    waitForFetch(previewUrl("a2"))
+    composeRule.onNodeWithContentDescription("a1.jpg").performTouchInput { swipeUp() }
+
+    waitForFetch(previewUrl("a3"))
   }
 }
