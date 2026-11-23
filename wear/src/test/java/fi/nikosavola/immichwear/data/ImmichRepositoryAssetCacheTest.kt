@@ -223,4 +223,53 @@ class ImmichRepositoryAssetCacheTest {
 
     assertNull(assetCache.load("timeline"))
   }
+
+  @Test
+  fun `latestAsset requests a single item and leaves the cached first page alone`() = runTest {
+    connect()
+    server.enqueue(assetsPage("a1", "a2", "a3"))
+    repository.timeline() // populates the cache with a full page
+    server.takeRequest()
+    server.enqueue(assetsPage("n1"))
+
+    val result = repository.latestAsset()
+
+    assertEquals("n1", (result as ImmichResult.Success).value?.id)
+    assertTrue(server.takeRequest().body.readUtf8().contains(""""size":1"""))
+    assertEquals(listOf("a1", "a2", "a3"), assetCache.load("timeline")?.map { it.id })
+  }
+
+  @Test
+  fun `latestAsset on an empty library is null and does not invalidate the cache`() = runTest {
+    connect()
+    server.enqueue(assetsPage("a1", "a2"))
+    repository.timeline()
+    server.enqueue(assetsPage())
+
+    val result = repository.latestAsset()
+
+    assertNull((result as ImmichResult.Success).value)
+    assertEquals(listOf("a1", "a2"), assetCache.load("timeline")?.map { it.id })
+  }
+
+  @Test
+  fun `latestAsset falls back to the head of the cached first page when offline`() = runTest {
+    connect()
+    server.enqueue(assetsPage("a1", "a2"))
+    repository.timeline()
+    server.shutdown()
+
+    val result = repository.latestAsset()
+
+    assertEquals("a1", (result as ImmichResult.Success).value?.id)
+    assertTrue(result.fromCache)
+  }
+
+  @Test
+  fun `latestAsset with nothing cached reports offline`() = runTest {
+    connect()
+    server.shutdown()
+
+    assertEquals(ImmichResult.Failure(ImmichError.Offline), repository.latestAsset())
+  }
 }

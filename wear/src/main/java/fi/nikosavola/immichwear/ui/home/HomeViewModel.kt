@@ -7,17 +7,19 @@ import fi.nikosavola.immichwear.data.ImmichResult
 import fi.nikosavola.immichwear.data.SettingsStore
 import fi.nikosavola.immichwear.data.api.dto.MemoryDto
 import java.time.LocalDate
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
  * Derived from [SettingsStore.settings] (not a one-shot read) so returning to Home after connecting
  * or signing out in Settings reflects the change immediately, with no manual refresh. Once
- * connected, also fetches the most recent photo and today's memories for Home's preview cards -
- * collectLatest cancels both fetches if settings change again before they complete.
+ * connected, also fetches the most recent photo and today's memories for Home's preview cards,
+ * concurrently - collectLatest cancels both fetches if settings change again before they complete.
  */
 class HomeViewModel(
   private val settingsStore: SettingsStore,
@@ -31,8 +33,21 @@ class HomeViewModel(
       settingsStore.settings.collectLatest { settings ->
         if (settings.serverUrl != null && settings.apiKey != null) {
           mutableUiState.value = HomeUiState.Connected()
-          mutableUiState.value =
-            HomeUiState.Connected(heroAssetId = fetchHeroAssetId(), memory = fetchMemoryPreview())
+          // Concurrent and published independently so a slow /api/memories can't hold back the
+          // hero card. Both are children of this collectLatest block, so a settings change
+          // cancels them together.
+          coroutineScope {
+            launch {
+              val heroAssetId = fetchHeroAssetId()
+              mutableUiState.update {
+                (it as? HomeUiState.Connected)?.copy(heroAssetId = heroAssetId) ?: it
+              }
+            }
+            launch {
+              val memory = fetchMemoryPreview()
+              mutableUiState.update { (it as? HomeUiState.Connected)?.copy(memory = memory) ?: it }
+            }
+          }
         } else {
           mutableUiState.value = HomeUiState.NotConnected
         }
@@ -41,8 +56,8 @@ class HomeViewModel(
   }
 
   private suspend fun fetchHeroAssetId(): String? =
-    when (val result = repository.timeline()) {
-      is ImmichResult.Success -> result.value.items.firstOrNull()?.id
+    when (val result = repository.latestAsset()) {
+      is ImmichResult.Success -> result.value?.id
       is ImmichResult.Failure -> null
     }
 
