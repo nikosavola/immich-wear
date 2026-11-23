@@ -1,6 +1,7 @@
 package fi.nikosavola.immichwear.data.api
 
 import java.util.concurrent.TimeUnit
+import okhttp3.Dispatcher
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
@@ -16,9 +17,13 @@ private const val READ_WRITE_TIMEOUT_SECONDS = 30L
 private val jsonMediaType = "application/json".toMediaType()
 
 /**
- * Bundles the Retrofit client with the OkHttpClient it runs on, so Coil (see AppContainer) can
- * share the exact same authenticated, base-URL-aware pipeline for image requests instead of
- * duplicating the header/host logic.
+ * Bundles the Retrofit client with an OkHttpClient for Coil (see AppContainer), so image requests
+ * get the exact same authenticated, base-URL-aware pipeline instead of duplicating the header/host
+ * logic.
+ *
+ * [okHttpClient] and the client behind [api] share interceptors, settings and connection pool but
+ * have separate dispatchers, so a burst of thumbnail loads queued against the per-host limit cannot
+ * delay an API call.
  */
 class ImmichClients(val api: ImmichApi, val okHttpClient: OkHttpClient)
 
@@ -46,10 +51,13 @@ fun createImmichClients(apiKey: () -> String?, serverBaseUrl: () -> String?): Im
       .addInterceptor(DynamicBaseUrlInterceptor(serverBaseUrl))
       .build()
 
+  // newBuilder() keeps the interceptors, timeouts, redirect policy and connection pool.
+  val apiClient = okHttpClient.newBuilder().dispatcher(Dispatcher()).build()
+
   val retrofit =
     Retrofit.Builder()
       .baseUrl(PLACEHOLDER_BASE_URL)
-      .client(okHttpClient)
+      .client(apiClient)
       .addConverterFactory(immichJson.asConverterFactory(jsonMediaType))
       .build()
 
