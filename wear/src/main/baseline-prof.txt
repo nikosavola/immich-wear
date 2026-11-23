@@ -1,0 +1,21 @@
+# Hand-written, not generated from a device run. Regenerate with Macrobenchmark, see docs/BASELINE_PROFILE.md.
+# H = hot, S = startup, P = post-startup. Classes are listed whole so inner classes and compose
+# lambda singletons are covered without naming them.
+HSPLfi/nikosavola/immichwear/ImmichApp;->**(**)**
+HSPLfi/nikosavola/immichwear/ui/MainActivity;->**(**)**
+HSPLfi/nikosavola/immichwear/di/AppContainer;->**(**)**
+HSPLfi/nikosavola/immichwear/data/ImmichRepository;->**(**)**
+HSPLfi/nikosavola/immichwear/data/SettingsStore;->**(**)**
+HSPLfi/nikosavola/immichwear/data/ApiKeyCipher;->**(**)**
+HSPLfi/nikosavola/immichwear/ui/navigation/**;->**(**)**
+HSPLfi/nikosavola/immichwear/ui/home/**;->**(**)**
+HSPLfi/nikosavola/immichwear/ui/theme/**;->**(**)**
+Lfi/nikosavola/immichwear/ImmichApp;
+Lfi/nikosavola/immichwear/ui/MainActivity;
+Lfi/nikosavola/immichwear/di/AppContainer;
+Lfi/nikosavola/immichwear/data/ImmichRepository;
+Lfi/nikosavola/immichwear/data/SettingsStore;
+Lfi/nikosavola/immichwear/data/ApiKeyCipher;
+Lfi/nikosavola/immichwear/ui/navigation/**;
+Lfi/nikosavola/immichwear/ui/home/**;
+Lfi/nikosavola/immichwear/ui/theme/**;
