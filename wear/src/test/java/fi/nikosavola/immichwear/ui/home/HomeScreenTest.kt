@@ -19,8 +19,10 @@ import fi.nikosavola.immichwear.data.ImmichRepository
 import fi.nikosavola.immichwear.data.SettingsStore
 import fi.nikosavola.immichwear.data.api.createImmichClients
 import kotlinx.coroutines.runBlocking
+import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import okhttp3.mockwebserver.RecordedRequest
 import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -71,6 +73,20 @@ class HomeScreenTest {
     server.shutdown()
   }
 
+  // Home fires the hero and memories requests concurrently, so arrival order is not fixed.
+  private fun serveHome(heroBody: String, memoriesBody: String) {
+    server.dispatcher =
+      object : Dispatcher() {
+        override fun dispatch(request: RecordedRequest): MockResponse =
+          when {
+            request.path == "/api/search/metadata" -> MockResponse().setBody(heroBody)
+            request.path?.startsWith("/api/memories") == true ->
+              MockResponse().setBody(memoriesBody)
+            else -> MockResponse().setResponseCode(404)
+          }
+      }
+  }
+
   private fun string(@StringRes resId: Int): String =
     ApplicationProvider.getApplicationContext<Context>().getString(resId)
 
@@ -110,8 +126,7 @@ class HomeScreenTest {
       settingsStore.setServerUrl(server.url("/").toString())
       settingsStore.setApiKey("key")
     }
-    server.enqueue(MockResponse().setBody(NO_ASSETS_RESPONSE)) // hero-photo fetch, empty library
-    server.enqueue(MockResponse().setBody(NO_MEMORIES_RESPONSE)) // memories fetch, none today
+    serveHome(heroBody = NO_ASSETS_RESPONSE, memoriesBody = NO_MEMORIES_RESPONSE)
     val viewModel = HomeViewModel(settingsStore, repository)
     var navigatedTo by mutableStateOf<String?>(null)
 
@@ -140,8 +155,7 @@ class HomeScreenTest {
       settingsStore.setServerUrl(server.url("/").toString())
       settingsStore.setApiKey("key")
     }
-    server.enqueue(MockResponse().setBody(NO_ASSETS_RESPONSE)) // hero-photo fetch, empty library
-    server.enqueue(MockResponse().setBody(NO_MEMORIES_RESPONSE)) // memories fetch, none today
+    serveHome(heroBody = NO_ASSETS_RESPONSE, memoriesBody = NO_MEMORIES_RESPONSE)
     val viewModel = HomeViewModel(settingsStore, repository)
     var navigatedTo by mutableStateOf<String?>(null)
 
@@ -170,15 +184,13 @@ class HomeScreenTest {
       settingsStore.setServerUrl(server.url("/").toString())
       settingsStore.setApiKey("key")
     }
-    server.enqueue(
-      MockResponse()
-        .setBody(
-          """{"assets": {"items": [{"id": "a1", "type": "IMAGE",""" +
-            """ "originalFileName": "a1.jpg", "isFavorite": false,""" +
-            """ "localDateTime": "2026-01-01T00:00:00Z"}], "nextPage": null}}"""
-        )
+    serveHome(
+      heroBody =
+        """{"assets": {"items": [{"id": "a1", "type": "IMAGE",""" +
+          """ "originalFileName": "a1.jpg", "isFavorite": false,""" +
+          """ "localDateTime": "2026-01-01T00:00:00Z"}], "nextPage": null}}""",
+      memoriesBody = NO_MEMORIES_RESPONSE,
     )
-    server.enqueue(MockResponse().setBody(NO_MEMORIES_RESPONSE)) // memories fetch, none today
     val viewModel = HomeViewModel(settingsStore, repository)
     var navigatedTo by mutableStateOf<String?>(null)
 
@@ -207,14 +219,12 @@ class HomeScreenTest {
       settingsStore.setServerUrl(server.url("/").toString())
       settingsStore.setApiKey("key")
     }
-    server.enqueue(MockResponse().setBody(NO_ASSETS_RESPONSE)) // hero-photo fetch, empty library
-    server.enqueue(
-      MockResponse()
-        .setBody(
-          """[{"data": {"year": 2020}, "assets": [{"id": "m1", "type": "IMAGE",""" +
-            """ "originalFileName": "m1.jpg", "isFavorite": false,""" +
-            """ "localDateTime": "2020-01-01T00:00:00Z"}]}]"""
-        )
+    serveHome(
+      heroBody = NO_ASSETS_RESPONSE,
+      memoriesBody =
+        """[{"data": {"year": 2020}, "assets": [{"id": "m1", "type": "IMAGE",""" +
+          """ "originalFileName": "m1.jpg", "isFavorite": false,""" +
+          """ "localDateTime": "2020-01-01T00:00:00Z"}]}]""",
     )
     val viewModel = HomeViewModel(settingsStore, repository)
     var navigatedTo by mutableStateOf<String?>(null)
@@ -244,8 +254,7 @@ class HomeScreenTest {
       settingsStore.setServerUrl(server.url("/").toString())
       settingsStore.setApiKey("key")
     }
-    server.enqueue(MockResponse().setBody(NO_ASSETS_RESPONSE)) // hero-photo fetch, empty library
-    server.enqueue(MockResponse().setBody(NO_MEMORIES_RESPONSE)) // memories fetch, none today
+    serveHome(heroBody = NO_ASSETS_RESPONSE, memoriesBody = NO_MEMORIES_RESPONSE)
     val viewModel = HomeViewModel(settingsStore, repository)
 
     composeRule.setContent {

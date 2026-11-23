@@ -124,6 +124,22 @@ class ImmichRepository(
       }
     }
 
+  /**
+   * The newest asset, or null for an empty library. Asks the server for a single item instead of a
+   * full [timeline] page. Never writes the timeline cache, since a one-item page would clobber the
+   * full first page; when offline it reads the cached first page's head instead.
+   */
+  suspend fun latestAsset(): ImmichResult<AssetDto?> {
+    val result = configured {
+      api.searchMetadata(MetadataSearchRequest(size = 1)).assets.items.firstOrNull()
+    }
+    if (result is ImmichResult.Failure && result.error.looksOffline) {
+      val cached = assetCache.load(TIMELINE_CACHE_KEY)?.firstOrNull()
+      if (cached != null) return ImmichResult.Success(cached, fromCache = true)
+    }
+    return result
+  }
+
   suspend fun albums(): ImmichResult<List<AlbumDto>> = configured { api.getAlbums() }
 
   suspend fun album(albumId: String): ImmichResult<AlbumDto> = configured { api.getAlbum(albumId) }
