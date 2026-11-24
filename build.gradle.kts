@@ -4,7 +4,7 @@
 buildscript {
   // Literal (not libs.versions.kotlin): the version-catalog accessor isn't available this early in
   // buildscript{} evaluation. Keep in sync with `kotlin` in gradle/libs.versions.toml.
-  dependencies { classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:2.4.10") }
+  dependencies { classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:2.4.20") }
 }
 
 plugins {
