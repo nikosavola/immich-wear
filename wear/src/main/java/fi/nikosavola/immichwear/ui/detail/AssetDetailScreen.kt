@@ -53,12 +53,12 @@ import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.SwipeToDismissBox
 import androidx.wear.compose.material3.Text
+import coil3.SingletonImageLoader
 import coil3.compose.AsyncImage
+import coil3.compose.LocalPlatformContext
 import fi.nikosavola.immichwear.R
-import fi.nikosavola.immichwear.data.api.AssetThumbnailSize
 import fi.nikosavola.immichwear.data.api.dto.AssetDto
 import fi.nikosavola.immichwear.data.api.dto.AssetTypeEnum
-import fi.nikosavola.immichwear.data.api.thumbnailUrl
 import fi.nikosavola.immichwear.ui.ErrorContent
 import kotlin.math.abs
 import kotlinx.coroutines.CoroutineScope
@@ -131,6 +131,7 @@ private fun BoxScope.AssetDetailContent(
   // becomes Loaded) - from then on the pager itself owns the current page, reported back to the
   // ViewModel via onPageSettled so state.asset (favorite toggle, details panel) stays in sync.
   val pagerState = rememberPagerState(initialPage = state.currentIndex) { state.assets.size }
+  var previewLoadedId by remember { mutableStateOf<String?>(null) }
 
   LaunchedEffect(pagerState) {
     snapshotFlow { pagerState.settledPage }.collect { onPageSettled(it) }
@@ -145,6 +146,13 @@ private fun BoxScope.AssetDetailContent(
   // distinct from the NavHost's own back-swipe.
   var showDetails by rememberSaveable(pagerState.settledPage) { mutableStateOf(false) }
   val revealProgress = remember(pagerState.settledPage) { mutableFloatStateOf(0f) }
+
+  // Holds off until the visible page's own preview is in, so the prefetch never competes with it
+  // for the watch's slow link.
+  PrefetchNextPreview(
+    nextAsset = state.assets.getOrNull(pagerState.settledPage + 1),
+    currentPreviewReady = previewLoadedId == state.assets.getOrNull(pagerState.settledPage)?.id,
+  )
 
   if (showDetails) {
     SwipeToDismissBox(
@@ -185,11 +193,24 @@ private fun BoxScope.AssetDetailContent(
             revealProgress = revealProgress,
             onToggleFavorite = onToggleFavorite,
             onRevealCommitted = { showDetails = true },
+            onPreviewLoaded = { previewLoadedId = pageAsset.id },
           )
         } else {
           AssetPhoto(asset = pageAsset, modifier = Modifier.fillMaxSize())
         }
       }
+    }
+  }
+}
+
+@Composable
+private fun PrefetchNextPreview(nextAsset: AssetDto?, currentPreviewReady: Boolean) {
+  val context = LocalPlatformContext.current
+  LaunchedEffect(nextAsset?.id, currentPreviewReady) {
+    // Videos only show their poster frame behind an overlay, not worth the bytes.
+    if (currentPreviewReady && nextAsset != null && nextAsset.type != AssetTypeEnum.VIDEO) {
+      // execute, not enqueue, so the download is cancelled with the effect.
+      SingletonImageLoader.get(context).execute(prefetchPreviewRequest(context, nextAsset.id))
     }
   }
 }
@@ -208,6 +229,7 @@ private fun BoxScope.ZoomableAssetPhoto(
   revealProgress: MutableFloatState,
   onToggleFavorite: () -> Unit,
   onRevealCommitted: () -> Unit,
+  onPreviewLoaded: () -> Unit,
 ) {
   val coroutineScope = rememberCoroutineScope()
   val transformableState = rememberTransformableState { zoomChange, panChange, _ ->
@@ -233,6 +255,7 @@ private fun BoxScope.ZoomableAssetPhoto(
 
     AssetPhoto(
       asset = asset,
+      onPreviewLoaded = onPreviewLoaded,
       modifier =
         Modifier.graphicsLayer {
             translationX = -revealProgress.floatValue * size.width + offsetState.value.x
@@ -353,9 +376,15 @@ private fun decideAxis(totalDrag: Offset, deadzonePx: Float): PhotoGestureMode {
 }
 
 @Composable
-private fun BoxScope.AssetPhoto(asset: AssetDto, modifier: Modifier = Modifier) {
+private fun BoxScope.AssetPhoto(
+  asset: AssetDto,
+  modifier: Modifier = Modifier,
+  onPreviewLoaded: () -> Unit = {},
+) {
+  val context = LocalPlatformContext.current
   AsyncImage(
-    model = thumbnailUrl(asset.id, AssetThumbnailSize.PREVIEW),
+    model = remember(asset.id) { previewRequest(context, asset.id) },
+    onSuccess = { onPreviewLoaded() },
     contentDescription = asset.originalFileName,
     contentScale = ContentScale.Fit,
     modifier = modifier.fillMaxSize(),
