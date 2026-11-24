@@ -20,5 +20,8 @@ sealed interface TimelineUiState {
     // True when [items] came from ImmichRepository's offline cache fallback rather than a live
     // fetch - see ImmichResult.Success.fromCache.
     val isFromCache: Boolean = false,
+    // Derived from [items] at construction so copy(isLoadingMore = ...) reuses the same row lists
+    // instead of handing the grid fresh instances. Don't pass copy(items = ...) without rows.
+    val rows: List<List<AssetDto>> = items.chunked(GRID_COLUMNS),
   ) : TimelineUiState
 }

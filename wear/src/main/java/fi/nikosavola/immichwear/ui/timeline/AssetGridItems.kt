@@ -23,7 +23,7 @@ import fi.nikosavola.immichwear.R
 import fi.nikosavola.immichwear.data.api.dto.AssetDto
 import fi.nikosavola.immichwear.ui.ErrorContent
 
-private const val GRID_COLUMNS = 3
+internal const val GRID_COLUMNS = 3
 
 /**
  * Shared item content for a paginated 3-column asset grid: loading/error/empty states, rows of
@@ -81,7 +81,7 @@ private fun TransformingLazyColumnScope.loadedItems(
     // via.
     item { OfflineCachedBanner(onClick = onRetry) }
   }
-  items(items = uiState.items.chunked(GRID_COLUMNS), key = { row -> row.first().id }) { row ->
+  items(items = uiState.rows, key = { row -> row.first().id }) { row ->
     AssetRow(row = row, onAssetClick = onAssetClick, modifier = Modifier.fillMaxWidth())
   }
   if (uiState.nextPage != null) {
