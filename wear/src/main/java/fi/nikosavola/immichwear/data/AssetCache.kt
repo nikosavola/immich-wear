@@ -37,6 +37,8 @@ interface AssetCache {
   suspend fun clear()
 }
 
+private const val COMPARE_CHUNK_BYTES = 8 * 1024
+
 /**
  * Stores each key as its own JSON file under [cacheDir], which callers must not share with other
  * unrelated cached data.
@@ -53,20 +55,9 @@ class FileAssetCache(private val cacheDir: File) : AssetCache {
         // file(key) validates the key - do this before touching any File, including the temp one
         // below, so an invalid key can't slip through via the temp-file path.
         val destination = file(key)
-        // Write to a temp file and rename over the real one, rather than writeText (truncate +
-        // write) directly to it: a concurrent save/load on the same key (plausible - Home's hero
-        // fetch, the tile service, and a detail-screen open can all race) or a process death
-        // mid-write would otherwise risk a load() reading a half-written, corrupt file.
-        val tempFile = File(destination.parentFile, "${destination.name}.${UUID.randomUUID()}.tmp")
-        tempFile.writeText(immichJson.encodeToString(items))
-        // renameTo returns false rather than throwing on failure. On Android's own Linux kernel
-        // this already atomically replaces an existing destination, but File.renameTo isn't
-        // guaranteed to do that on every JVM host (e.g. Windows), so delete-then-retry once before
-        // giving up - and clean up the temp file ourselves either way, since nothing else will.
-        if (!tempFile.renameTo(destination)) {
-          destination.delete()
-          if (!tempFile.renameTo(destination)) tempFile.delete()
-        }
+        val encoded = immichJson.encodeToString(items).toByteArray(Charsets.UTF_8)
+        // Every first-page fetch re-saves, usually unchanged: skip the flash write then.
+        if (!destination.hasContent(encoded)) writeAtomically(destination, encoded)
       } catch (e: IOException) {
         // Best-effort: a failed save just means the next offline fallback has nothing to load.
       } catch (e: SerializationException) {
@@ -74,6 +65,33 @@ class FileAssetCache(private val cacheDir: File) : AssetCache {
         // save must never crash a live fetch just because caching it didn't work.
       }
     }
+
+  private fun writeAtomically(destination: File, bytes: ByteArray) {
+    // Write to a temp file and rename over the real one, rather than writeText (truncate +
+    // write) directly to it: a concurrent save/load on the same key (plausible - Home's hero
+    // fetch, the tile service, and a detail-screen open can all race) or a process death
+    // mid-write would otherwise risk a load() reading a half-written, corrupt file.
+    val tempFile = File(destination.parentFile, "${destination.name}.${UUID.randomUUID()}.tmp")
+    tempFile.writeBytes(bytes)
+    // renameTo returns false rather than throwing on failure. On Android's own Linux kernel
+    // this already atomically replaces an existing destination, but File.renameTo isn't
+    // guaranteed to do that on every JVM host (e.g. Windows), so delete-then-retry once before
+    // giving up - and clean up the temp file ourselves either way, since nothing else will.
+    if (!tempFile.renameTo(destination)) {
+      destination.delete()
+      if (!tempFile.renameTo(destination)) tempFile.delete()
+    }
+  }
+
+  // Streams the comparison instead of reading the whole file into memory.
+  private fun File.hasContent(expected: ByteArray): Boolean =
+    isFile &&
+      length() == expected.size.toLong() &&
+      try {
+        inputStream().buffered().use { input -> expected.all { input.read().toByte() == it } }
+      } catch (e: IOException) {
+        false
+      }
 
   override suspend fun load(key: String): List<AssetDto>? =
     withContext(Dispatchers.IO) {

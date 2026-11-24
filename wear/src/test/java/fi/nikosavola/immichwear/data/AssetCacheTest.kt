@@ -41,6 +41,48 @@ class AssetCacheTest {
   }
 
   @Test
+  fun `saving unchanged content does not rewrite the file`() = runTest {
+    val dir = tempFolder.newFolder()
+    val cache = FileAssetCache(dir)
+    val items = listOf(asset("a1"), asset("a2"))
+    cache.save("timeline", items)
+    val file = File(dir, "timeline.json")
+    // A rewrite would replace the file, so this sentinel mtime would be lost.
+    assertTrue(file.setLastModified(1_000_000L))
+
+    cache.save("timeline", items)
+
+    assertEquals(1_000_000L, file.lastModified())
+    assertEquals(items, cache.load("timeline"))
+    assertEquals(listOf("timeline.json"), dir.list()!!.toList())
+  }
+
+  @Test
+  fun `saving changed content rewrites the file`() = runTest {
+    val dir = tempFolder.newFolder()
+    val cache = FileAssetCache(dir)
+    cache.save("timeline", listOf(asset("a1")))
+    val file = File(dir, "timeline.json")
+    assertTrue(file.setLastModified(1_000_000L))
+
+    cache.save("timeline", listOf(asset("a1"), asset("a2")))
+
+    assertTrue(file.lastModified() > 1_000_000L)
+    assertEquals(listOf(asset("a1"), asset("a2")), cache.load("timeline"))
+    assertEquals(listOf("timeline.json"), dir.list()!!.toList())
+  }
+
+  @Test
+  fun `saving same-length but different content rewrites the file`() = runTest {
+    val cache = cache()
+    cache.save("timeline", listOf(asset("a1")))
+
+    cache.save("timeline", listOf(asset("b1")))
+
+    assertEquals(listOf(asset("b1")), cache.load("timeline"))
+  }
+
+  @Test
   fun `different keys don't collide`() = runTest {
     val cache = cache()
     cache.save("timeline", listOf(asset("a1")))

@@ -1,6 +1,7 @@
 package fi.nikosavola.immichwear.tile
 
 import android.graphics.Bitmap
+import android.graphics.Matrix
 import androidx.wear.protolayout.LayoutElementBuilders
 import androidx.wear.protolayout.ResourceBuilders
 import androidx.wear.protolayout.TimelineBuilders
@@ -39,13 +40,16 @@ private const val TILE_IMAGE_SIZE_PX = 300
 private const val PHOTO_RESOURCE_ID_PREFIX = "photo:"
 
 // The server's thumbnail isn't guaranteed to be square, and the tile's InlineImageResource has one
-// fixed width/height - stretching a non-square source with createScaledBitmap would distort it, so
-// crop to the largest centered square first (a "zoomed to fill" crop, not a stretch).
-internal fun centerCropSquare(bitmap: Bitmap): Bitmap {
+// fixed width/height, so crop to the largest centered square (a "zoomed to fill" crop, not a
+// stretch).
+// Crop and scale in one pass so no unscaled intermediate crop is allocated.
+internal fun centerCropSquareScaled(bitmap: Bitmap, sizePx: Int): Bitmap {
   val side = minOf(bitmap.width, bitmap.height)
   val x = (bitmap.width - side) / 2
   val y = (bitmap.height - side) / 2
-  return Bitmap.createBitmap(bitmap, x, y, side, side)
+  val scale = sizePx.toFloat() / side
+  val matrix = Matrix().apply { setScale(scale, scale) }
+  return Bitmap.createBitmap(bitmap, x, y, side, side, matrix, true)
 }
 
 /**
@@ -169,12 +173,7 @@ class ImmichTileService : TileService() {
       ImageRequest.Builder(this).data(thumbnailUrl(asset.id, AssetThumbnailSize.THUMBNAIL)).build()
     val result = appContainer.imageLoader.execute(request)
     val bitmap = ((result as? SuccessResult)?.image as? BitmapImage)?.bitmap ?: return null
-    return Bitmap.createScaledBitmap(
-      centerCropSquare(bitmap),
-      TILE_IMAGE_SIZE_PX,
-      TILE_IMAGE_SIZE_PX,
-      true,
-    )
+    return centerCropSquareScaled(bitmap, TILE_IMAGE_SIZE_PX)
   }
 
   /**
